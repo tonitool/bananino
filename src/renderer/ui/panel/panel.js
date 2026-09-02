@@ -8,6 +8,7 @@ import { createRunningStrip } from './runningStrip.js'
 import { createUpcomingStrip } from './upcomingStrip.js'
 import { createCalendarTab } from './calendarTab.js'
 import { createManualEntry } from './manualEntry.js'
+import { createSettingsTab } from './settingsTab.js'
 import { formatMinutes } from '../format.js'
 
 /**
@@ -21,6 +22,9 @@ const TABS = [
   ['clips', 'Clips'],
   ['meet', 'Meet'],
   ['calendar', 'Cal'],
+  // A glyph, not a word: six words do not fit across the panel, and the gear is the one
+  // label everyone already reads as "settings".
+  ['settings', '⚙', 'Settings'],
 ]
 
 /**
@@ -156,17 +160,25 @@ export const createPanel = ({ actions }) => {
     onRefresh: () => actions.calendarRefresh(),
   })
 
-  const panels = { time, note, clips, meet, calendar }
+  const settings = createSettingsTab({
+    onCharacter: (id) => actions.setCharacter(id),
+    onCostume: (name) => actions.setCostume(name),
+    onDance: () => actions.toggleDance(),
+  })
+
+  const panels = { time, note, clips, meet, calendar, settings }
   let activeTab = 'note'
 
   const tabButtons = new Map(
-    TABS.map(([id, label]) => [
+    TABS.map(([id, label, name]) => [
       id,
       el('button', {
         class: 'tab',
         type: 'button',
         role: 'tab',
         text: label,
+        'aria-label': name ?? label,
+        title: name ?? false,
         onclick: () => focusTab(id),
       }),
     ]),
@@ -184,6 +196,7 @@ export const createPanel = ({ actions }) => {
     clips.root,
     meet.root,
     calendar.root,
+    settings.root,
     el('footer', { class: 'panel-footer' }, [
       mocoDot,
       summary,
@@ -233,6 +246,7 @@ export const createPanel = ({ actions }) => {
     clips.update(snapshot)
     meet.update(snapshot)
     calendar.update(snapshot)
+    settings.update(snapshot)
 
     const { today } = snapshot
     summary.textContent = `${formatMinutes(today.minutes)} tracked · ${today.notes} ${

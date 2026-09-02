@@ -103,6 +103,18 @@ export const SECRET_CLIPBOARD_MARKERS = Object.freeze([
 export const MAX_RECENT_TASKS = 6
 
 /**
+ * Who the buddy is. The keys must match CHARACTERS in src/renderer/scene/characters.js,
+ * which owns the per-model details (which way it faces, where its eyes are) and the
+ * assets/characters/<id>.source.glb it is built from.
+ */
+export const CHARACTER_MENU = Object.freeze([
+  ['banana', 'Bananino'],
+  ['cat', 'Cat'],
+])
+
+export const DEFAULT_CHARACTER = 'banana'
+
+/**
  * Menu entries for the dress-up options. The keys must match the implementations in
  * src/renderer/scene/costumes.js and src/renderer/animation/dances.js.
  */
@@ -175,6 +187,7 @@ export const IPC = Object.freeze({
 
   revealData: 'data:reveal',
   setCostume: 'costume:set',
+  setCharacter: 'character:set',
 
   mocoConnect: 'moco:connect',
   mocoDisconnect: 'moco:disconnect',

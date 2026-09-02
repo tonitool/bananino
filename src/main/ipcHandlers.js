@@ -72,6 +72,7 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
 
     [IPC.revealData]: () => actions.revealData(),
     [IPC.setCostume]: (_e, name) => actions.setCostume(asString(name)),
+    [IPC.setCharacter]: (_e, id) => actions.setCharacter(asString(id)),
 
     [IPC.mocoConnect]: (_e, payload) =>
       actions.mocoConnect({

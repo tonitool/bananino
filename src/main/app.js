@@ -1,5 +1,5 @@
 import { Menu, app, dialog, session, shell } from 'electron'
-import { CALENDAR, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
+import { CALENDAR, CHARACTER_MENU, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
 import { readSettings, withRecentTask, writeSettings } from './store.js'
 import { createPetWindow } from './petWindow.js'
 import { createPerch } from './perch.js'
@@ -60,7 +60,7 @@ export const startApp = () => {
   const getSettings = () => settings
   const saveSettings = (patch) => (settings = writeSettings(patch))
 
-  const win = createPetWindow()
+  const win = createPetWindow({ character: settings.character })
   // --pin-panel keeps the panel up while a screenshot is taken.
   const isPinned = () => process.argv.includes('--pin-panel')
   const interaction = createInteraction({
@@ -371,6 +371,20 @@ export const startApp = () => {
     setCostume: (name) => {
       saveSettings({ costume: name })
       send(IPC.command, { type: 'costume', name })
+      refresh()
+    },
+
+    /**
+     * Who the buddy is. The renderer swaps the model in place; this only records the
+     * choice, which is also what the window is loaded with next launch, so a restart
+     * never flashes the character you just left behind.
+     */
+    setCharacter: (id) => {
+      const known = CHARACTER_MENU.find(([characterId]) => characterId === id)
+      if (!known || id === settings.character) return
+      saveSettings({ character: id })
+      send(IPC.command, { type: 'character', id })
+      say(`${known[1].toLowerCase()} it is!`)
       refresh()
     },
     setDance: (name) => send(IPC.command, { type: 'dance', name }),

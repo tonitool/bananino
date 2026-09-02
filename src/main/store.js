@@ -2,8 +2,10 @@ import { app } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  CHARACTER_MENU,
   CORNERS,
   COSTUME_MENU,
+  DEFAULT_CHARACTER,
   DEFAULT_CORNER,
   DEFAULT_SIZE_KEY,
   MAX_RECENT_TASKS,
@@ -42,6 +44,7 @@ const sanitize = (raw) => ({
   meetingCloudFallback: raw?.meetingCloudFallback === true,
   meetingUseMic: raw?.meetingUseMic !== false,
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
+  character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,

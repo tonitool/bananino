@@ -6,7 +6,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const PRELOAD = join(here, '..', 'preload', 'index.cjs')
 const PAGE = join(here, '..', '..', 'build', 'index.html')
 
-export const createPetWindow = () => {
+export const createPetWindow = ({ character } = {}) => {
   const win = new BrowserWindow({
     show: false,
     frame: false,
@@ -36,10 +36,15 @@ export const createPetWindow = () => {
   // Forwarding keeps mousemove flowing so the renderer can tell when to become clickable.
   win.setIgnoreMouseEvents(true, { forward: true })
 
+  // The saved character is handed over in the URL rather than waited for over IPC: the
+  // model takes seconds to load, and booting the wrong one first shows a banana to
+  // someone who chose the cat.
+  //
   // BANANINO_YAW re-aims a swapped-in model and BANANINO_ZOOM reframes the camera, both
   // without touching the source.
   const query = Object.fromEntries(
     [
+      ['character', character],
       ['yaw', process.env.BANANINO_YAW],
       ['zoom', process.env.BANANINO_ZOOM],
     ].filter(([, value]) => value),
