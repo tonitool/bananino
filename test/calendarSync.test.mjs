@@ -2,131 +2,138 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCalendarSync } from '../src/main/calendar/sync.js'
 
-/**
- * The sync module with the network and the Keychain replaced by fakes, so the link
- * lifecycle and the reminder machine can be tested the way the rest of the pure code is.
- */
-const makeHarness = ({ accountActive = false, events = [], slugs } = {}) => {
-  let settings = { calendarAuthConfigId: '', calendarAccountId: '' }
-  let storedKey = null
-  const reminders = []
-  const changes = []
+const ICS_TEMPLATE = (uid, startMs, minutes = 30) => `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:${uid}
+SUMMARY:Daily standup
+DTSTART:${new Date(startMs).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+DTEND:${new Date(startMs + minutes * 60_000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+LOCATION:https://teams.microsoft.com/l/meetup-join/xyz
+END:VEVENT
+END:VCALENDAR`
 
-  const api = {
-    listTools: async () => slugs ?? ['OUTLOOK_LIST_CALENDAR_VIEW_EVENTS', 'OUTLOOK_CREATE_ME_EVENT'],
-    listAuthConfigs: async () => [{ id: 'ac_dashboard' }],
-    createAuthConfig: async () => ({ id: 'ac_created' }),
-    createLinkSession: async () => ({ redirectUrl: 'https://login.example/abc', accountId: 'ca_1' }),
-    getAccount: async () => ({ status: accountActive ? 'ACTIVE' : 'INITIATED' }),
-    accountIsActive: (account) => String(account?.status ?? '').toUpperCase() === 'ACTIVE',
-    executeAction: async () => ({ data: { value: events } }),
+/**
+ * The sync module with the Keychain and the network replaced by fakes, so the connect /
+ * poll / remind / disconnect cycle can be tested the way the rest of the pure code is.
+ */
+const makeHarness = ({ icsText = null, fetchFails = false } = {}) => {
+  let settings = { calendarFeed: false }
+  let storedUrl = null
+  let shouldFail = fetchFails
+  const reminders = []
+  const fetches = []
+
+  const feed = {
+    normaliseFeedUrl: (value) => {
+      const trimmed = String(value ?? '').trim()
+      if (!trimmed.startsWith('https://')) throw new Error('Only https:// links.')
+      return trimmed
+    },
+    fetchFeed: async (url) => {
+      fetches.push(url)
+      if (shouldFail) throw Object.assign(new Error('Answered HTTP 404.'), { hint: 'Republish it.' })
+      return icsText ?? 'BEGIN:VCALENDAR\nEND:VCALENDAR'
+    },
+    failFromNowOn: () => (shouldFail = true),
   }
 
   const keys = {
     isSecureStorageAvailable: () => true,
-    saveApiKey: async (key) => (storedKey = key),
-    readApiKey: async () => storedKey,
-    hasApiKey: async () => storedKey !== null,
-    forgetApiKey: async () => (storedKey = null),
+    saveFeedUrl: async (url) => (storedUrl = url),
+    readFeedUrl: async () => storedUrl,
+    hasFeedUrl: async () => storedUrl !== null,
+    forgetFeedUrl: async () => (storedUrl = null),
   }
 
   const calendar = createCalendarSync({
     getSettings: () => settings,
     saveSettings: (patch) => (settings = { ...settings, ...patch }),
-    onChange: () => changes.push(calendar.status()),
+    onChange: () => {},
     onReminder: (event, kind) => reminders.push([event.id, kind]),
-    api,
     keys,
+    feed,
   })
 
-  return { calendar, reminders, changes, getSettings: () => settings, api }
+  return { calendar, reminders, fetches, feed, keys, getSettings: () => settings }
 }
 
-test('a fresh install reports disconnected without touching the network', async () => {
-  const { calendar } = makeHarness()
+test('a relaunch with a stored link reconnects and polls on its own', async () => {
+  const startMs = Math.floor((Date.now() + 4 * 60_000) / 1000) * 1000
+  const { calendar, keys, reminders } = makeHarness({ icsText: ICS_TEMPLATE('evt-boot', startMs) })
+  await keys.saveFeedUrl('https://feed.example/stored.ics')
+
   await calendar.start()
-  const status = calendar.status()
-  assert.equal(status.keySaved, false)
-  assert.equal(status.linked, false)
-  assert.equal(status.linking, false)
-})
-
-test('connect verifies and stores the key, and a blank auth config id keeps the old one', async () => {
-  const { calendar, getSettings } = makeHarness()
-  getSettings() // settings start blank
-
-  await calendar.connect({ apiKey: 'cmp_live_key', authConfigId: '' })
-  assert.equal(calendar.status().keySaved, true)
-  assert.equal(getSettings().calendarAuthConfigId, '')
-
-  // A stored id survives a re-connect whose field was left empty.
-  getSettings().calendarAuthConfigId = 'ac_keep_me'
-  await calendar.connect({ apiKey: 'cmp_live_key', authConfigId: '' })
-  assert.equal(getSettings().calendarAuthConfigId, 'ac_keep_me')
-})
-
-test('connect rejects an account whose toolkit list is empty', async () => {
-  const { calendar } = makeHarness({ slugs: [] })
-  await assert.rejects(calendar.connect({ apiKey: 'k', authConfigId: '' }), /no Outlook tools/i)
-  assert.equal(calendar.status().keySaved, false)
-})
-
-test('beginLink enters linking, cancelLink leaves it cleanly', async () => {
-  const { calendar } = makeHarness()
-  await calendar.connect({ apiKey: 'k', authConfigId: '' })
-
-  const session = await calendar.beginLink()
-  assert.equal(session.redirectUrl, 'https://login.example/abc')
-  assert.equal(calendar.status().linking, true)
-
-  // The consent page was closed without finishing — the Link button must come back.
-  calendar.cancelLink()
-  assert.equal(calendar.status().linking, false)
-  assert.equal(calendar.status().linked, false)
-})
-
-test('checkLink flips to linked once Microsoft says yes, then polling serves reminders', async () => {
-  const startMs = Date.now() + 3 * 60_000 // starts in 3 minutes: inside the 5-minute window
-  const harness = makeHarness({
-    accountActive: true,
-    events: [
-      {
-        id: 'evt-daily',
-        subject: 'Daily standup',
-        start: { dateTime: new Date(startMs).toISOString(), timeZone: 'UTC' },
-        end: { dateTime: new Date(startMs + 30 * 60_000).toISOString(), timeZone: 'UTC' },
-      },
-    ],
-  })
-  const { calendar, reminders } = harness
-
-  await calendar.connect({ apiKey: 'k', authConfigId: '' })
-  await calendar.beginLink()
-  const linked = await calendar.checkLink()
-  assert.equal(linked, true)
-  assert.equal(calendar.status().linked, true)
-
-  // The initial poll after linking saw the upcoming meeting and reminded once.
+  // The first poll is kicked off by start(); let it settle.
   await calendar.pollNow()
-  assert.deepEqual(reminders, [['evt-daily', 'soon']])
 
-  // Polling again inside the same window must not re-notify.
+  assert.equal(calendar.status().connected, true)
+  assert.deepEqual(reminders, [[`evt-boot@${new Date(startMs).toISOString()}`, 'soon']])
+})
+
+test('a fresh install reports disconnected without touching the network', async () => {
+  const { calendar, fetches } = makeHarness()
+  await calendar.start()
+  assert.equal(calendar.status().connected, false)
+  assert.deepEqual(fetches, [])
+})
+
+test('connect fetches the feed first and only stores a link that works', async () => {
+  const good = makeHarness()
+  await good.calendar.connect({ feedUrl: 'https://outlook.office365.com/owa/calendar/x/calendar.ics' })
+  assert.equal(good.calendar.status().connected, true)
+  assert.equal(good.getSettings().calendarFeed, true)
+  assert.equal(good.fetches.length, 1)
+
+  const bad = makeHarness({ fetchFails: true })
+  await assert.rejects(bad.calendar.connect({ feedUrl: 'https://example.com/c.ics' }), /404/)
+  assert.equal(bad.calendar.status().connected, false)
+  assert.equal(bad.getSettings().calendarFeed, false)
+})
+
+test('a non-https link is rejected before any fetch happens', async () => {
+  const { calendar, fetches } = makeHarness()
+  await assert.rejects(calendar.connect({ feedUrl: 'http://calendar.example/x.ics' }))
+  assert.deepEqual(fetches, [])
+})
+
+test('polling inside the 5-minute window reminds exactly once', async () => {
+  const startMs = Math.floor((Date.now() + 3 * 60_000) / 1000) * 1000
+  const { calendar, reminders } = makeHarness({ icsText: ICS_TEMPLATE('evt-daily', startMs) })
+
+  await calendar.connect({ feedUrl: 'https://feed.example/c.ics' })
+  assert.deepEqual(reminders, [['evt-daily@' + new Date(startMs).toISOString(), 'soon']])
+
+  await calendar.pollNow()
   await calendar.pollNow()
   assert.equal(reminders.length, 1)
 
   const upcoming = calendar.status().upcoming
-  assert.equal(upcoming.length, 1)
   assert.equal(upcoming[0].title, 'Daily standup')
+  assert.equal(upcoming[0].joinUrl, 'https://teams.microsoft.com/l/meetup-join/xyz')
 })
 
-test('disconnect forgets the key and the link', async () => {
-  const { calendar, getSettings } = makeHarness({ accountActive: true })
-  await calendar.connect({ apiKey: 'k', authConfigId: '' })
-  await calendar.beginLink()
-  await calendar.checkLink()
+test('poll failures surface as lastError but keep the connection and upcoming list', async () => {
+  const { calendar, feed } = makeHarness({ icsText: ICS_TEMPLATE('evt-later', Math.floor((Date.now() + 40 * 60_000) / 1000) * 1000) })
+  await calendar.connect({ feedUrl: 'https://feed.example/c.ics' })
+  assert.equal(calendar.status().upcoming.length, 1)
+  assert.equal(calendar.status().lastError, null)
+
+  // The feed starts failing — republished link, dead network. The user stays connected
+  // and sees why nothing refreshes.
+  feed.failFromNowOn()
+  await calendar.pollNow()
+  assert.equal(calendar.status().connected, true)
+  assert.match(calendar.status().lastError, /404/)
+})
+
+test('disconnect forgets the link and clears the marker', async () => {
+  const { calendar, getSettings } = makeHarness()
+  await calendar.connect({ feedUrl: 'https://feed.example/c.ics' })
+  assert.equal(calendar.status().connected, true)
 
   await calendar.disconnect()
-  assert.equal(calendar.status().keySaved, false)
-  assert.equal(calendar.status().linked, false)
-  assert.equal(getSettings().calendarAccountId, '')
+  assert.equal(calendar.status().connected, false)
+  assert.equal(getSettings().calendarFeed, false)
+  assert.deepEqual(calendar.status().upcoming, [])
 })

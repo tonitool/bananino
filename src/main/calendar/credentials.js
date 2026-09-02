@@ -2,41 +2,41 @@ import { app, safeStorage } from 'electron'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const FILE_NAME = 'composio.key'
+const FILE_NAME = 'calendar.url'
 
 const filePath = () => join(app.getPath('userData'), FILE_NAME)
 
 /**
- * The Composio API key follows the same rule as the MOCO key: encrypted with safeStorage
- * (the macOS login Keychain), never written in plain text, never logged, and sent only to
- * Composio itself.
+ * A published calendar URL is a bearer secret: anyone holding it can read the calendar.
+ * It gets the same treatment as the MOCO key — safeStorage (the login Keychain), never
+ * plain text, never logged, and fetched only over HTTPS.
  */
 export const isSecureStorageAvailable = () => safeStorage.isEncryptionAvailable()
 
-export const saveApiKey = async (apiKey) => {
-  const trimmed = String(apiKey ?? '').trim()
-  if (!trimmed) throw new Error('The API key is empty.')
+export const saveFeedUrl = async (feedUrl) => {
+  const trimmed = String(feedUrl ?? '').trim()
+  if (!trimmed) throw new Error('The calendar link is empty.')
   if (!isSecureStorageAvailable()) {
-    throw new Error('Encrypted storage is unavailable, so the key cannot be saved safely.')
+    throw new Error('Encrypted storage is unavailable, so the link cannot be saved safely.')
   }
 
   await writeFile(filePath(), safeStorage.encryptString(trimmed), { mode: 0o600 })
 }
 
-export const readApiKey = async () => {
+export const readFeedUrl = async () => {
   if (!isSecureStorageAvailable()) return null
   try {
     return safeStorage.decryptString(await readFile(filePath()))
   } catch (error) {
     if (error.code !== 'ENOENT') {
-      console.warn('[calendar] stored key could not be read:', error.message)
+      console.warn('[calendar] stored feed link could not be read:', error.message)
     }
     return null
   }
 }
 
-export const forgetApiKey = async () => {
+export const forgetFeedUrl = async () => {
   await rm(filePath(), { force: true })
 }
 
-export const hasApiKey = async () => (await readApiKey()) !== null
+export const hasFeedUrl = async () => (await readFeedUrl()) !== null

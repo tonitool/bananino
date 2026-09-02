@@ -46,9 +46,7 @@ const IPC = {
   mocoCatalogue: 'moco:catalogue',
 
   calendarConnect: 'calendar:connect',
-  calendarLink: 'calendar:link',
   calendarDisconnect: 'calendar:disconnect',
-  calendarCreate: 'calendar:create',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
 }
@@ -105,9 +103,7 @@ contextBridge.exposeInMainWorld('pet', {
   onMocoCatalogue: (handler) => subscribe(IPC.mocoCatalogue, handler),
 
   calendarConnect: (payload) => ipcRenderer.send(IPC.calendarConnect, payload),
-  calendarLink: () => ipcRenderer.send(IPC.calendarLink),
   calendarDisconnect: () => ipcRenderer.send(IPC.calendarDisconnect),
-  calendarCreate: send(IPC.calendarCreate),
   calendarJoin: send(IPC.calendarJoin),
   calendarRefresh: () => ipcRenderer.send(IPC.calendarRefresh),
 

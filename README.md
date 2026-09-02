@@ -147,24 +147,24 @@ billable records, so they are shown before they are submitted.
 
 ## Calendar (Outlook / Teams)
 
-The **Cal** tab connects your Microsoft calendar through
-[Composio](https://composio.dev), which brokers the OAuth sign-in:
+The **Cal** tab watches a **published** calendar — Outlook's own share mechanism, no OAuth,
+no admin consent, no third-party account:
 
-1. Create a free Composio account and copy your API key (dashboard → Settings).
-2. Paste it into the **Cal** tab → **Connect**. (Only needed if the dashboard shows no
-   auth config yet: create one for the **Outlook** toolkit and paste its ID too.)
-3. Click **Link Microsoft account** — your browser opens for the Microsoft consent page
-   once. The key and tokens are stored encrypted in your Keychain; the link survives
-   restarts.
+1. In Outlook: **Settings → Calendar → Shared calendars → Publish a calendar**, pick your
+   calendar, choose **full details** (that's what carries Teams join links), copy the
+   **ICS** link.
+2. Paste it into the **Cal** tab → **Connect**. The link lives Keychain-encrypted on this
+   Mac; anyone holding it can read that calendar, so treat it like a password. Outlook can
+   revoke it anytime by unpublishing.
 
-Once linked, the buddy keeps an eye on the next ~26 hours: a desk clock turns up beside it
-15 minutes before a meeting, it pops out and says so 5 minutes before and again at start,
-and the panel shows a strip with **Join** (Teams/Meet link) and **Record** (starts meeting
-transcription straight from there). The Cal tab also creates real meetings: title, date,
-time, duration, invitees, and a **Teams link** checkbox that attaches a proper join URL —
-copied to your clipboard on creation.
+Once connected, the buddy keeps an eye on the next ~26 hours: a desk clock turns up beside
+it 15 minutes before a meeting, it pops out and says so 5 minutes before and again at
+start, and the panel shows a strip with **Join** (the Teams link) and **Record** (starts
+meeting transcription straight from there).
 
-Google Calendar plugs into the same pipe later; nothing about the tab changes.
+The feed is **read-only** with a few minutes' propagation lag — that is the one trade-off;
+meeting creation would need write access (OAuth) and returns if that lands later. Any
+ICS-serving calendar works, not just Outlook.
 
 ## Where your data goes
 

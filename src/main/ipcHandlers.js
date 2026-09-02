@@ -84,27 +84,10 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.mocoDiscard]: (_e, id) => actions.mocoDiscard(asString(id)),
 
     [IPC.calendarConnect]: (_e, payload) =>
-      actions.calendarConnect({
-        apiKey: asString(payload?.apiKey),
-        authConfigId: asString(payload?.authConfigId),
-      }),
-    [IPC.calendarLink]: () => actions.calendarLink(),
+      actions.calendarConnect({ feedUrl: asString(payload?.feedUrl) }),
     [IPC.calendarDisconnect]: () => actions.calendarDisconnect(),
     [IPC.calendarRefresh]: () => actions.calendarRefresh(),
     [IPC.calendarJoin]: (_e, payload) => actions.calendarJoin(asString(payload?.url)),
-    [IPC.calendarCreate]: (_e, payload) =>
-      actions.calendarCreate({
-        title: asString(payload?.title),
-        date: asString(payload?.date),
-        startTime: asString(payload?.startTime),
-        minutes: Number(payload?.minutes),
-        online: payload?.online === true,
-        // The renderer sends the invitees field as one free-text string; keep it so —
-        // parsing happens next to validation, closer to the wire.
-        attendees: Array.isArray(payload?.attendees)
-          ? payload.attendees.map(asString).filter(Boolean).join(' ')
-          : asString(payload?.attendees),
-      }),
 
   }
 

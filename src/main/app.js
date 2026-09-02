@@ -1,5 +1,5 @@
 import { Menu, app, dialog, session, shell } from 'electron'
-import { CALENDAR, COMPOSIO, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
+import { CALENDAR, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
 import { readSettings, withRecentTask, writeSettings } from './store.js'
 import { createPetWindow } from './petWindow.js'
 import { createPerch } from './perch.js'
@@ -15,7 +15,6 @@ import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
 import { createCalendarSync } from './calendar/sync.js'
 import * as calendarKeys from './calendar/credentials.js'
-import { parseAttendees } from './calendar/events.js'
 import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
 import { startUpdateNotifier } from './update/notifier.js'
@@ -176,71 +175,6 @@ export const startApp = () => {
     },
   })
 
-  // While the Microsoft consent page is open in the browser, poll for completion.
-  let linkWatcher = null
-  const watchLink = () => {
-    clearInterval(linkWatcher)
-    const startedAt = Date.now()
-    linkWatcher = setInterval(() => {
-      calendar
-        .checkLink()
-        .then((linked) => {
-          if (!linked) return
-          clearInterval(linkWatcher)
-          linkWatcher = null
-          react('hop')
-          say('calendar linked!')
-        })
-        .catch((error) => console.warn('[calendar] link check failed:', error.message))
-      if (Date.now() - startedAt > COMPOSIO.linkTimeoutMs && linkWatcher) {
-        clearInterval(linkWatcher)
-        linkWatcher = null
-        // Without this the tab's Link button stays disabled on "Waiting for the browser…"
-        // forever — a closed consent tab was indistinguishable from a slow one.
-        calendar.cancelLink()
-        say('sign-in did not finish — try again when ready', 'sad')
-      }
-    }, COMPOSIO.linkPollMs)
-  }
-
-  const timer = createTimer({
-    getSettings,
-    saveSettings,
-    onChange: (event) => {
-      if (event.type === 'started') (react('hop'), say(`tracking “${event.task}”`))
-      if (event.type === 'error') say(event.message, 'sad')
-
-      if (event.type === 'nudged') {
-        say(`${event.minutes > 0 ? '+' : ''}${event.minutes}m — for testing`)
-      }
-
-      if (event.type === 'discarded') {
-        say(`only ${Math.round(event.seconds)}s — not logged`, 'sad')
-      }
-
-      if (event.type === 'stopped') {
-        react('hop')
-        // Queued, never pushed: these become billable records, so the send stays manual.
-        moco
-          .enqueue(event)
-          .then((queued) =>
-            say(
-              queued
-                ? `${formatMinutes(event.minutes)} logged · queued for MOCO`
-                : // Silence here once let a stint look synced when it never was.
-                  `${formatMinutes(event.minutes)} logged · local only, no MOCO task`,
-              queued || !moco.isConnected() ? 'happy' : 'sad',
-            ),
-          )
-          .catch((error) => {
-            console.error('[moco] could not queue that entry:', error)
-            say('logged, but not queued for MOCO', 'sad')
-          })
-      }
-      refresh()
-    },
-  })
-
   const actions = {
     /**
      * The renderer calls this once it is ready. The catalogue is sent here too because a
@@ -328,42 +262,24 @@ export const startApp = () => {
      */
     setMocoRounding: (step) => (saveSettings({ mocoRoundTo: step }), refresh()),
 
-    calendarConnect: async ({ apiKey, authConfigId }) => {
+    calendarConnect: async ({ feedUrl }) => {
       try {
-        await calendar.connect({ apiKey, authConfigId })
-        say(calendar.isLinked() ? 'calendar connected' : 'key saved — link your account next')
+        await calendar.connect({ feedUrl })
         react('hop')
+        const count = calendar.upcoming().length
+        say(count === 1 ? 'calendar connected · 1 meeting ahead' : `calendar connected · ${count} meetings ahead`)
       } catch (error) {
         console.error('[calendar] connect failed:', error.message)
         send(IPC.command, {
           type: 'calendar-error',
           message: `${error.message} ${error.hint ?? ''}`.trim(),
         })
-        say('Composio said no', 'sad')
-      }
-      refresh()
-    },
-
-    calendarLink: async () => {
-      try {
-        const { redirectUrl } = await calendar.beginLink()
-        await shell.openExternal(redirectUrl)
-        say('finish the sign-in in your browser')
-        watchLink()
-      } catch (error) {
-        console.error('[calendar] link failed:', error.message)
-        send(IPC.command, {
-          type: 'calendar-error',
-          message: `${error.message} ${error.hint ?? ''}`.trim(),
-        })
-        say('no sign-in link', 'sad')
+        say('that calendar link did not work', 'sad')
       }
       refresh()
     },
 
     calendarDisconnect: async () => {
-      clearInterval(linkWatcher)
-      linkWatcher = null
       await calendar.disconnect().catch(reportOnly('disconnect the calendar'))
       say('calendar disconnected')
       refresh()
@@ -397,51 +313,6 @@ export const startApp = () => {
       })
     },
 
-    calendarCreate: async ({ title, date, startTime, minutes, online, attendees }) => {
-      const time = /^([01]?\d|2[0-3]):[0-5]\d$/.exec(startTime)
-      const day = parseIsoDate(date)
-      if (!day || !time) return say('that start time looks wrong', 'sad')
-      if (!Number.isFinite(minutes) || minutes < 5 || minutes > 480) {
-        return say('pick 5 to 480 minutes', 'sad')
-      }
-      const what = title.trim()
-      if (!what) return say('what is the meeting called?', 'sad')
-
-      const startMs = new Date(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate(),
-        Number(time[1]),
-        Number(startTime.slice(-2)),
-      ).getTime()
-
-      try {
-        // The field is free text; commas, semicolons and the odd typo are normal there.
-        const emails = parseAttendees(Array.isArray(attendees) ? attendees.join(' ') : attendees)
-        const created = await calendar.createMeeting({
-          title: what,
-          startMs,
-          minutes,
-          online,
-          attendees: emails,
-        })
-        react('hop')
-        if (created.joinUrl) {
-          await clipboard.copyToClipboard(created.joinUrl).catch(reportOnly('copy the join link'))
-          say(`“${created.subject}” created · link copied`)
-        } else {
-          say(`“${created.subject}” created`)
-        }
-      } catch (error) {
-        console.error('[calendar] create failed:', error.message)
-        send(IPC.command, {
-          type: 'calendar-error',
-          message: error.message,
-        })
-        say('meeting was not created', 'sad')
-      }
-      refresh()
-    },
 
     mocoDiscard: async (id) => {
       await moco.discard(id).catch(reportOnly('discard that entry'))
@@ -750,7 +621,6 @@ export const startApp = () => {
 
   app.on('before-quit', () => {
     isQuitting = true
-    clearInterval(linkWatcher)
     calendar.stop()
     stopCursorTracker()
     music.stop()

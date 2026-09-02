@@ -147,27 +147,8 @@
   display: none;
 }
 
-.cal-sep {
-  width: 100%;
-  border: none;
-  border-top: 1px solid var(--cream-line);
-  margin: 4px 0;
-}
-
-.cal-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-sm);
-}
-
 .cal-unlink[hidden] {
   display: none;
-}
-
-.timer-input--slim {
-  flex: 1;
-  min-width: 0;
 }
 
 .spacer {

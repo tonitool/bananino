@@ -144,9 +144,7 @@ export const createPanel = ({ actions }) => {
 
   const calendar = createCalendarTab({
     onConnect: (payload) => actions.calendarConnect(payload),
-    onLink: () => actions.calendarLink(),
     onDisconnect: () => actions.calendarDisconnect(),
-    onCreate: (payload) => actions.calendarCreate(payload),
     onJoin: (url) => actions.calendarJoin(url),
     onRecord: (title) => {
       actions.startMeeting({ title })

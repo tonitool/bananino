@@ -177,9 +177,7 @@ export const IPC = Object.freeze({
   mocoCatalogue: 'moco:catalogue',
 
   calendarConnect: 'calendar:connect',
-  calendarLink: 'calendar:link',
   calendarDisconnect: 'calendar:disconnect',
-  calendarCreate: 'calendar:create',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
 })
@@ -242,37 +240,12 @@ export const OPENROUTER = Object.freeze({
 })
 
 /*
- * Calendar via Composio. Composio is the OAuth bridge to Microsoft (and Google, later):
- * Bananino holds only the user's Composio API key, Composio holds the Microsoft tokens.
- * That means calendar data transits their servers for reads — this trade-off is
- * disclosed in PRIVACY.md. The key itself never leaves the Mac except to Composio.
+ * The published-calendar feed: one HTTPS read per poll, no OAuth anywhere. The link is a
+ * bearer secret (Keychain-encrypted at rest); the feed itself is read-only.
  */
-export const COMPOSIO = Object.freeze({
-  baseUrl: 'https://backend.composio.dev/api/v3',
-  // Single-user app: every tool call is for the one local person.
-  userId: 'bananino',
-  toolkit: 'OUTLOOK',
-  timeoutMs: 20_000,
-  linkPollMs: 3_000,
-  linkTimeoutMs: 300_000,
-  /*
-   * Action slugs differ across Composio versions, so the client asks the account which
-   * tools exist and picks the first available candidate rather than trusting one name.
-   * Calendar-view variants expand recurring meetings into dated instances, which is why
-   * they sort first; a plain event list works too, it just may miss recurrence detail.
-   */
-  listSlugs: Object.freeze([
-    'OUTLOOK_LIST_CALENDAR_VIEW_EVENTS',
-    'OUTLOOK_CALENDAR_LIST_EVENTS',
-    'OUTLOOK_LIST_EVENTS',
-    'OUTLOOK_GET_EVENTS',
-    'OUTLOOK_CALENDAR_VIEW_LIST',
-  ]),
-  createSlugs: Object.freeze(['OUTLOOK_CREATE_ME_EVENT', 'OUTLOOK_CALENDAR_CREATE_EVENT']),
-})
-
 export const CALENDAR = Object.freeze({
   pollMs: 60_000,
+  feedTimeoutMs: 20_000,
   // Events further out than this are not worth holding in memory.
   horizonHours: 26,
   remindMinutes: 5,

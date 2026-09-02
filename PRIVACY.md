@@ -25,9 +25,10 @@ recorded, so it is worth knowing:
 **Your MOCO API key** — encrypted with macOS `safeStorage`, which is backed by your login
 Keychain. It is never written in plain text and never logged.
 
-**Your Composio API key** — same treatment as the MOCO key: encrypted with `safeStorage`,
-never plain text, never logged, sent only to Composio. Connection identifiers (the auth
-config and account IDs) are not secrets and live in `pet-state.json`.
+**Your published-calendar link** — a bearer URL: whoever holds it can read that calendar.
+It is encrypted with macOS `safeStorage` (the login Keychain), never written in plain
+text, never logged. Outlook revokes it instantly when you unpublish, and **Disconnect
+calendar** deletes it here.
 
 ## What leaves your Mac
 
@@ -35,12 +36,10 @@ Only these, and only when you ask:
 
 - **MOCO** — pushing queued time sends the date, duration, description, and project and
   task ids to your own MOCO account. Nothing is sent until you press **Push**.
-- **Calendar via Composio** — if you connect the Calendar tab, Bananino asks Composio
-  (who hold the Microsoft sign-in for your account) for your upcoming events, roughly
-  once a minute while linked. Event titles, times and join links pass through Composio's
-  servers to reach your Mac; meeting creation goes the same way in the other direction.
-  Microsoft and Composio's own privacy policies apply to that pipe. Disconnecting forgets
-  the key and the link.
+- **Published calendar** — if you connect the Calendar tab, the app fetches the ICS URL
+  you provided, roughly once a minute while connected. That traffic goes only to the
+  address in the link (Microsoft's servers) — no analytics middleman, and the read is
+  one-way.
 - **Update checks** — if a repository is configured, the app asks the GitHub Releases API
   whether a newer version exists. It sends no information about you.
 - **Ask an assistant** — right-clicking a note and choosing ChatGPT, Claude or Gemini opens
