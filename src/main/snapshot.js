@@ -1,3 +1,4 @@
+import { CALENDAR } from './constants.js'
 import { countNotesToday, readNotesToday } from './storage/notes.js'
 import { readDayTotals } from './storage/timeLog.js'
 
@@ -17,7 +18,7 @@ const toClipPreview = (clip) => ({
  * One object describing everything the panel renders. Pushing a whole snapshot on every
  * change keeps the renderer free of its own copy of the truth.
  */
-export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting }) => {
+export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar }) => {
   const { dataDir } = settings
 
   const [today, notesToday, recentNotes] = await Promise.all([
@@ -40,6 +41,7 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
     moco: moco ?? null,
     nowPlaying: nowPlaying ?? null,
     meeting: meeting ?? null,
+    calendar: calendar ?? null,
     settings: {
       corner: settings.corner,
       sizeKey: settings.sizeKey,
@@ -50,6 +52,8 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
       meetingUseMic: settings.meetingUseMic,
       costume: settings.costume,
       dataDir: settings.dataDir,
+      // Single source for the renderer's clock-prop trigger: the main process owns it.
+      calendarClockLeadMinutes: CALENDAR.clockLeadMinutes,
     },
   }
 }

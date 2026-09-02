@@ -5,6 +5,8 @@ import { createClipsTab } from './clipsTab.js'
 import { createMeetingTab } from './meetingTab.js'
 import { createMocoBar } from './mocoBar.js'
 import { createRunningStrip } from './runningStrip.js'
+import { createUpcomingStrip } from './upcomingStrip.js'
+import { createCalendarTab } from './calendarTab.js'
 import { createManualEntry } from './manualEntry.js'
 import { formatMinutes } from '../format.js'
 
@@ -18,6 +20,7 @@ const TABS = [
   ['note', 'Note'],
   ['clips', 'Clips'],
   ['meet', 'Meet'],
+  ['calendar', 'Cal'],
 ]
 
 /**
@@ -130,7 +133,29 @@ export const createPanel = ({ actions }) => {
     onStop: () => actions.stopMeeting(),
   })
 
-  const panels = { time, note, clips, meet }
+  const upcoming = createUpcomingStrip({
+    onJoin: (url) => actions.calendarJoin(url),
+    onRecord: (title) => {
+      actions.startMeeting({ title })
+      focusTab('meet')
+    },
+    onOpenCalendar: () => focusTab('calendar'),
+  })
+
+  const calendar = createCalendarTab({
+    onConnect: (payload) => actions.calendarConnect(payload),
+    onLink: () => actions.calendarLink(),
+    onDisconnect: () => actions.calendarDisconnect(),
+    onCreate: (payload) => actions.calendarCreate(payload),
+    onJoin: (url) => actions.calendarJoin(url),
+    onRecord: (title) => {
+      actions.startMeeting({ title })
+      focusTab('meet')
+    },
+    onRefresh: () => actions.calendarRefresh(),
+  })
+
+  const panels = { time, note, clips, meet, calendar }
   let activeTab = 'note'
 
   const tabButtons = new Map(
@@ -151,11 +176,13 @@ export const createPanel = ({ actions }) => {
 
   const root = el('section', { class: 'panel', 'aria-label': 'Bananino' }, [
     running.root,
+    upcoming.root,
     el('div', { class: 'tabs', role: 'tablist' }, [...tabButtons.values()]),
     time.root,
     note.root,
     clips.root,
     meet.root,
+    calendar.root,
     el('footer', { class: 'panel-footer' }, [
       mocoDot,
       summary,
@@ -198,11 +225,13 @@ export const createPanel = ({ actions }) => {
 
   const update = (snapshot) => {
     running.update(snapshot)
+    upcoming.update(snapshot)
     timer.update(snapshot)
     moco.update(snapshot)
     note.update(snapshot)
     clips.update(snapshot)
     meet.update(snapshot)
+    calendar.update(snapshot)
 
     const { today } = snapshot
     summary.textContent = `${formatMinutes(today.minutes)} tracked · ${today.notes} ${

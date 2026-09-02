@@ -1,5 +1,5 @@
 import { Menu, app, dialog, session, shell } from 'electron'
-import { IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
+import { CALENDAR, COMPOSIO, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
 import { readSettings, withRecentTask, writeSettings } from './store.js'
 import { createPetWindow } from './petWindow.js'
 import { createPerch } from './perch.js'
@@ -13,6 +13,9 @@ import { registerIpcHandlers } from './ipcHandlers.js'
 import { registerShortcuts } from './shortcuts.js'
 import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
+import { createCalendarSync } from './calendar/sync.js'
+import * as calendarKeys from './calendar/credentials.js'
+import { parseAttendees } from './calendar/events.js'
 import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
 import { startUpdateNotifier } from './update/notifier.js'
@@ -104,6 +107,7 @@ export const startApp = () => {
           moco: { ...moco.status(), entries: moco.pendingEntries() },
           nowPlaying: music.current(),
           meeting: meeting.status(),
+          calendar: calendar.status(),
         }),
       )
     } catch (error) {
@@ -149,6 +153,55 @@ export const startApp = () => {
       refresh()
     },
   })
+
+  /*
+   * A coming-up meeting is one of the few things worth interrupting idle for, so the
+   * reminder does the full attention grab: come out of the corner, hop, and say what's
+   * coming. Clicking the buddy then shows the Join/Record strip in the panel.
+   */
+  const calendar = createCalendarSync({
+    getSettings,
+    saveSettings,
+    keys: calendarKeys,
+    onChange: () => void pushSnapshot(),
+    onReminder: (event, kind) => {
+      perch.reveal()
+      react('hop')
+      say(
+        kind === 'now'
+          ? `“${event.title}” is starting`
+          : `“${event.title}” in ${CALENDAR.remindMinutes} min`,
+        kind === 'now' ? 'excited' : 'happy',
+      )
+    },
+  })
+
+  // While the Microsoft consent page is open in the browser, poll for completion.
+  let linkWatcher = null
+  const watchLink = () => {
+    clearInterval(linkWatcher)
+    const startedAt = Date.now()
+    linkWatcher = setInterval(() => {
+      calendar
+        .checkLink()
+        .then((linked) => {
+          if (!linked) return
+          clearInterval(linkWatcher)
+          linkWatcher = null
+          react('hop')
+          say('calendar linked!')
+        })
+        .catch((error) => console.warn('[calendar] link check failed:', error.message))
+      if (Date.now() - startedAt > COMPOSIO.linkTimeoutMs && linkWatcher) {
+        clearInterval(linkWatcher)
+        linkWatcher = null
+        // Without this the tab's Link button stays disabled on "Waiting for the browser…"
+        // forever — a closed consent tab was indistinguishable from a slow one.
+        calendar.cancelLink()
+        say('sign-in did not finish — try again when ready', 'sad')
+      }
+    }, COMPOSIO.linkPollMs)
+  }
 
   const timer = createTimer({
     getSettings,
@@ -274,6 +327,121 @@ export const startApp = () => {
      * when you want the app's own record to match what is booked.
      */
     setMocoRounding: (step) => (saveSettings({ mocoRoundTo: step }), refresh()),
+
+    calendarConnect: async ({ apiKey, authConfigId }) => {
+      try {
+        await calendar.connect({ apiKey, authConfigId })
+        say(calendar.isLinked() ? 'calendar connected' : 'key saved — link your account next')
+        react('hop')
+      } catch (error) {
+        console.error('[calendar] connect failed:', error.message)
+        send(IPC.command, {
+          type: 'calendar-error',
+          message: `${error.message} ${error.hint ?? ''}`.trim(),
+        })
+        say('Composio said no', 'sad')
+      }
+      refresh()
+    },
+
+    calendarLink: async () => {
+      try {
+        const { redirectUrl } = await calendar.beginLink()
+        await shell.openExternal(redirectUrl)
+        say('finish the sign-in in your browser')
+        watchLink()
+      } catch (error) {
+        console.error('[calendar] link failed:', error.message)
+        send(IPC.command, {
+          type: 'calendar-error',
+          message: `${error.message} ${error.hint ?? ''}`.trim(),
+        })
+        say('no sign-in link', 'sad')
+      }
+      refresh()
+    },
+
+    calendarDisconnect: async () => {
+      clearInterval(linkWatcher)
+      linkWatcher = null
+      await calendar.disconnect().catch(reportOnly('disconnect the calendar'))
+      say('calendar disconnected')
+      refresh()
+    },
+
+    calendarRefresh: async () => {
+      await calendar.pollNow().catch((error) => {
+        console.error('[calendar] refresh failed:', error.message)
+        say('could not refresh the calendar', 'sad')
+      })
+      refresh()
+    },
+
+    /** Join links are opened by us, so only meeting hosts get handed to the browser. */
+    calendarJoin: async (url) => {
+      let parsed
+      try {
+        parsed = new URL(String(url ?? ''))
+        if (parsed.protocol !== 'https:') throw new Error('https only')
+      } catch {
+        return say('that is not a link', 'sad')
+      }
+      const allowed =
+        ['teams.microsoft.com', 'teams.live.com', 'meet.google.com'].includes(parsed.hostname) ||
+        parsed.hostname.endsWith('.zoom.us')
+      if (!allowed) return say('that does not look like a meeting link', 'sad')
+
+      await shell.openExternal(parsed.href).catch((error) => {
+        console.error('[calendar] could not open the join link:', error)
+        say('could not open the link', 'sad')
+      })
+    },
+
+    calendarCreate: async ({ title, date, startTime, minutes, online, attendees }) => {
+      const time = /^([01]?\d|2[0-3]):[0-5]\d$/.exec(startTime)
+      const day = parseIsoDate(date)
+      if (!day || !time) return say('that start time looks wrong', 'sad')
+      if (!Number.isFinite(minutes) || minutes < 5 || minutes > 480) {
+        return say('pick 5 to 480 minutes', 'sad')
+      }
+      const what = title.trim()
+      if (!what) return say('what is the meeting called?', 'sad')
+
+      const startMs = new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate(),
+        Number(time[1]),
+        Number(startTime.slice(-2)),
+      ).getTime()
+
+      try {
+        // The field is free text; commas, semicolons and the odd typo are normal there.
+        const emails = parseAttendees(Array.isArray(attendees) ? attendees.join(' ') : attendees)
+        const created = await calendar.createMeeting({
+          title: what,
+          startMs,
+          minutes,
+          online,
+          attendees: emails,
+        })
+        react('hop')
+        if (created.joinUrl) {
+          await clipboard.copyToClipboard(created.joinUrl).catch(reportOnly('copy the join link'))
+          say(`“${created.subject}” created · link copied`)
+        } else {
+          say(`“${created.subject}” created`)
+        }
+      } catch (error) {
+        console.error('[calendar] create failed:', error.message)
+        send(IPC.command, {
+          type: 'calendar-error',
+          message: error.message,
+        })
+        say('meeting was not created', 'sad')
+      }
+      refresh()
+    },
 
     mocoDiscard: async (id) => {
       await moco.discard(id).catch(reportOnly('discard that entry'))
@@ -530,6 +698,8 @@ export const startApp = () => {
     .then(sendCatalogue)
     .catch((error) => console.error('[moco] could not start:', error))
 
+  calendar.start().catch((error) => console.error('[calendar] could not start:', error))
+
   /*
    * Without a handler Electron's default would decide this; being explicit means the page
    * can only ever obtain the microphone, only for audio, and only while a meeting is
@@ -580,6 +750,8 @@ export const startApp = () => {
 
   app.on('before-quit', () => {
     isQuitting = true
+    clearInterval(linkWatcher)
+    calendar.stop()
     stopCursorTracker()
     music.stop()
     updates.stop?.()

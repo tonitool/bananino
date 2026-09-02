@@ -145,6 +145,27 @@ Stopping a timer **queues** the entry; it is never sent automatically. The bar s
 `3 entries queued · Push`, with **Review** to see them and **×** to discard. These become
 billable records, so they are shown before they are submitted.
 
+## Calendar (Outlook / Teams)
+
+The **Cal** tab connects your Microsoft calendar through
+[Composio](https://composio.dev), which brokers the OAuth sign-in:
+
+1. Create a free Composio account and copy your API key (dashboard → Settings).
+2. Paste it into the **Cal** tab → **Connect**. (Only needed if the dashboard shows no
+   auth config yet: create one for the **Outlook** toolkit and paste its ID too.)
+3. Click **Link Microsoft account** — your browser opens for the Microsoft consent page
+   once. The key and tokens are stored encrypted in your Keychain; the link survives
+   restarts.
+
+Once linked, the buddy keeps an eye on the next ~26 hours: a desk clock turns up beside it
+15 minutes before a meeting, it pops out and says so 5 minutes before and again at start,
+and the panel shows a strip with **Join** (Teams/Meet link) and **Record** (starts meeting
+transcription straight from there). The Cal tab also creates real meetings: title, date,
+time, duration, invitees, and a **Teams link** checkbox that attaches a proper join URL —
+copied to your clipboard on creation.
+
+Google Calendar plugs into the same pipe later; nothing about the tab changes.
+
 ## Where your data goes
 
 Everything is plain files in `~/Documents/bananino` (changeable via **Change folder…** —

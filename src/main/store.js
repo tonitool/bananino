@@ -43,6 +43,11 @@ const sanitize = (raw) => ({
   meetingUseMic: raw?.meetingUseMic !== false,
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
+  // Composio bookkeeping — identifiers, not secrets. The API key itself lives in
+  // safeStorage; these only let a relaunch find the same connection again.
+  calendarAuthConfigId:
+    typeof raw?.calendarAuthConfigId === 'string' ? raw.calendarAuthConfigId : '',
+  calendarAccountId: typeof raw?.calendarAccountId === 'string' ? raw.calendarAccountId : '',
   // Off by default: rounding up bills more time than was worked.
   mocoRoundTo: [0, 5, 15].includes(raw?.mocoRoundTo) ? raw.mocoRoundTo : 0,
   taskBindings: sanitizeBindings(raw?.taskBindings),

@@ -129,6 +129,27 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
     ],
   },
   {
+    label: 'Calendar',
+    submenu: [
+      {
+        label: settings.calendarAccountId ? 'Microsoft account linked' : 'Not linked',
+        enabled: false,
+      },
+      { type: 'separator' },
+      {
+        label: 'Link Microsoft account…',
+        enabled: !settings.calendarAccountId,
+        click: actions.calendarLink,
+      },
+      { label: 'Refresh now', enabled: Boolean(settings.calendarAccountId), click: actions.calendarRefresh },
+      {
+        label: 'Disconnect',
+        enabled: Boolean(settings.calendarAccountId),
+        click: actions.calendarDisconnect,
+      },
+    ],
+  },
+  {
     label: "Show what's playing",
     type: 'checkbox',
     checked: settings.showNowPlaying,

@@ -14,6 +14,7 @@ import { createMicCapture } from './audio/micCapture.js'
 import { createStatusPill } from './ui/statusPill.js'
 import { createMusicBox } from './ui/musicBox.js'
 import { loadMusicScene } from './scene/musicScene.js'
+import { loadClockScene } from './scene/clockScene.js'
 import { createPanel } from './ui/panel/panel.js'
 import { GREETINGS, GRUMBLES, IDLE_MUSINGS } from './ui/phrases.js'
 import { applyLayout, toCanvasCursor } from './layout.js'
@@ -41,6 +42,14 @@ const IDLE_MUSING_CHANCE = 0.3
 const GREETING_CHANCE = 0.28
 
 const bridge = window.pet
+
+/**
+ * Commands can arrive before boot finishes — the character model takes seconds to load,
+ * and a focus-tab sent in that window used to drop on the floor, leaving the panel on the
+ * wrong tab. Buffer until the real handler exists, then replay in order.
+ */
+const earlyCommands = []
+const captureEarlyCommands = bridge?.onCommand((command) => earlyCommands.push(command))
 
 const elements = {
   stage: document.getElementById('stage'),
@@ -130,6 +139,12 @@ async function boot() {
       mocoPush: () => bridge.mocoPush(),
       mocoRefresh: () => bridge.mocoRefresh(),
       mocoDiscard: (id) => bridge.mocoDiscard(id),
+      calendarConnect: (payload) => bridge.calendarConnect(payload),
+      calendarLink: () => bridge.calendarLink(),
+      calendarDisconnect: () => bridge.calendarDisconnect(),
+      calendarCreate: (payload) => bridge.calendarCreate(payload),
+      calendarJoin: (url) => bridge.calendarJoin({ url }),
+      calendarRefresh: () => bridge.calendarRefresh(),
     },
   })
   elements.stage.append(panel.root)
@@ -153,8 +168,17 @@ async function boot() {
   })
   if (musicScene) character.pivot.add(musicScene.root)
 
+  // The meeting clock: same load-and-ease contract as the radio, driven by the calendar.
+  const clockScene = await loadClockScene({ anchors }).catch((error) => {
+    console.warn('[calendar] clock prop unavailable:', error.message)
+    return null
+  })
+  if (clockScene) character.pivot.add(clockScene.root)
+
   let musicPresence = 0
   let isPlaying = false
+  let clockPresence = 0
+  let meetingSoon = false
 
 
   const setInteractive = (value) => {
@@ -227,6 +251,11 @@ async function boot() {
     statusPill.update(snapshot)
     musicBox.update(snapshot.nowPlaying)
     isPlaying = Boolean(snapshot.nowPlaying)
+
+    const next = snapshot.calendar?.upcoming?.[0] ?? null
+    const leadMs = (snapshot.settings?.calendarClockLeadMinutes ?? 15) * 60_000
+    // The clock stands by the character from lead time until the meeting is over.
+    meetingSoon = Boolean(next && next.startMs <= Date.now() + leadMs && next.endMs > Date.now())
   })
 
   bridge.onPanelState((panelState) => {
@@ -250,7 +279,9 @@ async function boot() {
     }
   })
 
-  bridge.onCommand((command) => {
+  bridge.onCommand((command) => handleCommand(command))
+
+  const handleCommand = (command) => {
     switch (command?.type) {
       case 'toast':
         return bubble.say(command.text, { tone: command.tone })
@@ -268,6 +299,8 @@ async function boot() {
         return panel.resetManual()
       case 'moco-error':
         return bubble.say(command.message, { tone: 'sad', duration: 5000 })
+      case 'calendar-error':
+        return bubble.say(command.message, { tone: 'sad', duration: 5000 })
       case 'costume':
         costumeRack.wear(command.name)
         return paintPanel()
@@ -277,7 +310,10 @@ async function boot() {
       default:
         console.warn('Unknown command from the main process:', command)
     }
-  })
+  }
+
+  captureEarlyCommands?.()
+  for (const queued of earlyCommands.splice(0)) handleCommand(queued)
 
   /**
    * Captured on the stage rather than the canvas, and only claimed when the pointer is
@@ -350,6 +386,8 @@ async function boot() {
     // Folded together with the character's own presence: the props belong to the
     // character, so they must leave with it rather than linger on an empty desktop.
     musicScene?.update({ clock: state.clock, presence: musicPresence * state.presence })
+    clockPresence = settlePresence(clockPresence, meetingSoon ? 1 : 0, dt)
+    clockScene?.update({ presence: clockPresence * state.presence })
     musicBox.tick(state.clock)
 
     const pose = poseFor(state)

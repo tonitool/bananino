@@ -45,6 +45,12 @@ const IPC = {
   mocoDiscard: 'moco:discard',
   mocoCatalogue: 'moco:catalogue',
 
+  calendarConnect: 'calendar:connect',
+  calendarLink: 'calendar:link',
+  calendarDisconnect: 'calendar:disconnect',
+  calendarCreate: 'calendar:create',
+  calendarJoin: 'calendar:join',
+  calendarRefresh: 'calendar:refresh',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -97,6 +103,13 @@ contextBridge.exposeInMainWorld('pet', {
   mocoRefresh: () => ipcRenderer.send(IPC.mocoRefresh),
   mocoDiscard: send(IPC.mocoDiscard),
   onMocoCatalogue: (handler) => subscribe(IPC.mocoCatalogue, handler),
+
+  calendarConnect: (payload) => ipcRenderer.send(IPC.calendarConnect, payload),
+  calendarLink: () => ipcRenderer.send(IPC.calendarLink),
+  calendarDisconnect: () => ipcRenderer.send(IPC.calendarDisconnect),
+  calendarCreate: send(IPC.calendarCreate),
+  calendarJoin: send(IPC.calendarJoin),
+  calendarRefresh: () => ipcRenderer.send(IPC.calendarRefresh),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),

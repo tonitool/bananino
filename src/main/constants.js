@@ -123,7 +123,7 @@ export const DANCE_MENU = Object.freeze([
  * Releases API and the app offers the download — it cannot install one, because
  * Squirrel.Mac requires a code-signed app and this one is not signed yet.
  */
-export const UPDATE_REPOSITORY = 'https://github.com/OWNER/REPO'
+export const UPDATE_REPOSITORY = 'https://github.com/tonitool/bananino'
 
 export const DEFAULT_SHORTCUTS = Object.freeze({
   panel: 'Control+Alt+Space',
@@ -176,6 +176,12 @@ export const IPC = Object.freeze({
   mocoDiscard: 'moco:discard',
   mocoCatalogue: 'moco:catalogue',
 
+  calendarConnect: 'calendar:connect',
+  calendarLink: 'calendar:link',
+  calendarDisconnect: 'calendar:disconnect',
+  calendarCreate: 'calendar:create',
+  calendarJoin: 'calendar:join',
+  calendarRefresh: 'calendar:refresh',
 })
 
 /*
@@ -233,4 +239,45 @@ export const OPENROUTER = Object.freeze({
   url: 'https://openrouter.ai/api/v1/chat/completions',
   model: 'anthropic/claude-3.5-sonnet',
   timeoutMs: 120_000,
+})
+
+/*
+ * Calendar via Composio. Composio is the OAuth bridge to Microsoft (and Google, later):
+ * Bananino holds only the user's Composio API key, Composio holds the Microsoft tokens.
+ * That means calendar data transits their servers for reads — this trade-off is
+ * disclosed in PRIVACY.md. The key itself never leaves the Mac except to Composio.
+ */
+export const COMPOSIO = Object.freeze({
+  baseUrl: 'https://backend.composio.dev/api/v3',
+  // Single-user app: every tool call is for the one local person.
+  userId: 'bananino',
+  toolkit: 'OUTLOOK',
+  timeoutMs: 20_000,
+  linkPollMs: 3_000,
+  linkTimeoutMs: 300_000,
+  /*
+   * Action slugs differ across Composio versions, so the client asks the account which
+   * tools exist and picks the first available candidate rather than trusting one name.
+   * Calendar-view variants expand recurring meetings into dated instances, which is why
+   * they sort first; a plain event list works too, it just may miss recurrence detail.
+   */
+  listSlugs: Object.freeze([
+    'OUTLOOK_LIST_CALENDAR_VIEW_EVENTS',
+    'OUTLOOK_CALENDAR_LIST_EVENTS',
+    'OUTLOOK_LIST_EVENTS',
+    'OUTLOOK_GET_EVENTS',
+    'OUTLOOK_CALENDAR_VIEW_LIST',
+  ]),
+  createSlugs: Object.freeze(['OUTLOOK_CREATE_ME_EVENT', 'OUTLOOK_CALENDAR_CREATE_EVENT']),
+})
+
+export const CALENDAR = Object.freeze({
+  pollMs: 60_000,
+  // Events further out than this are not worth holding in memory.
+  horizonHours: 26,
+  remindMinutes: 5,
+  // A reminder at start still makes sense if the app only catches it a little late.
+  startGraceMinutes: 10,
+  // The clock prop appears this long before the meeting starts.
+  clockLeadMinutes: 15,
 })
