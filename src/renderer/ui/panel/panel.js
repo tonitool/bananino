@@ -139,6 +139,8 @@ export const createPanel = ({ actions }) => {
       actions.startMeeting({ title })
       focusTab('meet')
     },
+    onAcknowledge: (id) => actions.calendarAcknowledge(id),
+    onSkip: (id) => actions.calendarSkip(id),
     onOpenCalendar: () => focusTab('calendar'),
   })
 
@@ -150,6 +152,7 @@ export const createPanel = ({ actions }) => {
       actions.startMeeting({ title })
       focusTab('meet')
     },
+    onSkip: (id) => actions.calendarSkip(id),
     onRefresh: () => actions.calendarRefresh(),
   })
 

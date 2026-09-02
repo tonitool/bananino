@@ -88,6 +88,8 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.calendarDisconnect]: () => actions.calendarDisconnect(),
     [IPC.calendarRefresh]: () => actions.calendarRefresh(),
     [IPC.calendarJoin]: (_e, payload) => actions.calendarJoin(asString(payload?.url)),
+    [IPC.calendarAcknowledge]: (_e, payload) => actions.calendarAcknowledge(asString(payload?.id)),
+    [IPC.calendarSkip]: (_e, payload) => actions.calendarSkip(asString(payload?.id)),
 
   }
 

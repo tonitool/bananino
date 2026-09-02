@@ -127,6 +127,62 @@ test('poll failures surface as lastError but keep the connection and upcoming li
   assert.match(calendar.status().lastError, /404/)
 })
 
+test('"I\'m in" silences reminders, "Skip it" hides the occurrence everywhere', async () => {
+  const startMs = Math.floor((Date.now() + 3 * 60_000) / 1000) * 1000
+  // Both events land inside the 5-minute reminder window.
+  const laterMs = startMs + 90_000
+  const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:first
+SUMMARY:First meeting
+DTSTART:${new Date(startMs).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+DTEND:${new Date(startMs + 1800000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+END:VEVENT
+BEGIN:VEVENT
+UID:second
+SUMMARY:Second meeting
+DTSTART:${new Date(laterMs).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+DTEND:${new Date(laterMs + 1800000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}
+END:VEVENT
+END:VCALENDAR`
+
+  const { calendar, reminders, getSettings } = makeHarness({ icsText: ics })
+  await calendar.connect({ feedUrl: 'https://feed.example/c.ics' })
+  assert.equal(reminders.length, 2, 'both inside the window reminded')
+
+  calendar.acknowledge(`first@${new Date(startMs).toISOString()}`)
+  await calendar.pollNow()
+  assert.equal(reminders.length, 2, 'acknowledged: no re-remind')
+  assert.equal(calendar.status().upcoming.length, 2, 'acknowledged: still listed')
+
+  calendar.skip(`second@${new Date(laterMs).toISOString()}`)
+  assert.equal(calendar.status().upcoming.length, 1, 'skipped: gone from the list')
+  assert.equal(calendar.status().upcoming[0].title, 'First meeting')
+  assert.deepEqual(getSettings().calendarSkipped, [`second@${new Date(laterMs).toISOString()}`])
+
+  await calendar.pollNow()
+  assert.equal(reminders.length, 2, 'skipped: silent')
+})
+
+test('skipped occurrences stay hidden across a restart', async () => {
+  const startMs = Math.floor((Date.now() + 3 * 60_000) / 1000) * 1000
+  const harness = makeHarness({ icsText: ICS_TEMPLATE('evt-skip', startMs) })
+  await harness.calendar.connect({ feedUrl: 'https://feed.example/c.ics' })
+
+  const id = `evt-skip@${new Date(startMs).toISOString()}`
+  harness.calendar.skip(id)
+  harness.calendar.stop()
+
+  // Fresh instance, same settings store: the skip survives.
+  const restarted = makeHarness({ icsText: ICS_TEMPLATE('evt-skip', startMs) })
+  restarted.getSettings().calendarSkipped = harness.getSettings().calendarSkipped
+  restarted.calendar.start()
+  await restarted.calendar.pollNow()
+  assert.deepEqual(restarted.calendar.status().upcoming, [])
+  assert.deepEqual(restarted.reminders, [])
+})
+
 test('disconnect forgets the link and clears the marker', async () => {
   const { calendar, getSettings } = makeHarness()
   await calendar.connect({ feedUrl: 'https://feed.example/c.ics' })

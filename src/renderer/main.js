@@ -143,6 +143,8 @@ async function boot() {
       calendarDisconnect: () => bridge.calendarDisconnect(),
       calendarJoin: (url) => bridge.calendarJoin({ url }),
       calendarRefresh: () => bridge.calendarRefresh(),
+      calendarAcknowledge: (id) => bridge.calendarAcknowledge({ id }),
+      calendarSkip: (id) => bridge.calendarSkip({ id }),
     },
   })
   elements.stage.append(panel.root)

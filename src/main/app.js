@@ -293,6 +293,17 @@ export const startApp = () => {
       refresh()
     },
 
+    /** The two answers a reminder deserves: silence it, or silence and hide it. */
+    calendarAcknowledge: (id) => {
+      calendar.acknowledge(id)
+      say('see you there!')
+    },
+
+    calendarSkip: (id) => {
+      calendar.skip(id)
+      say('out of your hair')
+    },
+
     /** Join links are opened by us, so only meeting hosts get handed to the browser. */
     calendarJoin: async (url) => {
       let parsed

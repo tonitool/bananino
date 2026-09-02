@@ -34,7 +34,12 @@ export const createCalendarSync = ({
 
   const notify = () => onChange?.()
 
-  const upcomingWindow = () => events.filter((event) => event.endMs > Date.now()).slice(0, 5)
+  // Skipped occurrences are invisible everywhere: strip, tab, clock.
+  const skipped = new Set(getSettings().calendarSkipped ?? [])
+  const upcomingWindow = () =>
+    events
+      .filter((event) => event.endMs > Date.now() && !skipped.has(event.id))
+      .slice(0, 5)
 
   const status = () => ({
     available: keys.isSecureStorageAvailable(),
@@ -51,6 +56,21 @@ export const createCalendarSync = ({
       startPolling()
       void pollNow()
     }
+  }
+
+  /** "I'm in" — no more bubbles for this occurrence; the strip stays for Join/Record. */
+  const acknowledge = (eventId) => {
+    reminded.add(`${eventId}:soon`)
+    reminded.add(`${eventId}:now`)
+    notify()
+  }
+
+  /** "Skip it" — silent like acknowledge, and the occurrence hides everywhere too. */
+  const skip = (eventId) => {
+    acknowledge(eventId)
+    skipped.add(eventId)
+    saveSettings({ calendarSkipped: [...skipped] })
+    notify()
   }
 
   const startPolling = () => {
@@ -135,6 +155,8 @@ export const createCalendarSync = ({
     connect,
     disconnect,
     pollNow,
+    acknowledge,
+    skip,
     status,
     isConnected: () => connected,
     upcoming: upcomingWindow,

@@ -75,6 +75,28 @@
   background: oklch(100% 0 0 / 1);
 }
 
+.upcoming-answer {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: oklch(100% 0 0 / 0.55);
+  color: var(--cocoa);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.upcoming-answer:hover {
+  background: oklch(100% 0 0 / 0.9);
+}
+
+.upcoming-answer--skip {
+  color: var(--cocoa-soft);
+}
+
 .cal-connect,
 .cal-live {
   display: flex;

@@ -45,6 +45,11 @@ const sanitize = (raw) => ({
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,
+  // Occurrences the user answered "skip it" to. Ids carry the instant, so they age out
+  // with the meetings themselves; the cap is just belt and braces.
+  calendarSkipped: Array.isArray(raw?.calendarSkipped)
+    ? raw.calendarSkipped.filter((id) => typeof id === 'string' && id.length < 300).slice(-32)
+    : [],
   // Off by default: rounding up bills more time than was worked.
   mocoRoundTo: [0, 5, 15].includes(raw?.mocoRoundTo) ? raw.mocoRoundTo : 0,
   taskBindings: sanitizeBindings(raw?.taskBindings),

@@ -17,7 +17,14 @@ const describeWhen = (event, now) => {
  * needs write access, which means OAuth — that path returns when it exists; until then,
  * create meetings in Outlook and they show up here.
  */
-export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, onRefresh }) => {
+export const createCalendarTab = ({
+  onConnect,
+  onDisconnect,
+  onJoin,
+  onRecord,
+  onRefresh,
+  onSkip,
+}) => {
   const feedUrl = el('input', {
     class: 'timer-input',
     type: 'password',
@@ -101,6 +108,13 @@ export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, o
               text: 'Record',
               disabled: meetingActive || null,
               onclick: () => onRecord(event.title),
+            }),
+            el('button', {
+              class: 'button--small link cal-skip',
+              type: 'button',
+              text: 'Skip',
+              title: "Not going — stop the reminders and hide this one",
+              onclick: () => onSkip(event.id),
             }),
           ]),
         ]),

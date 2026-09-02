@@ -49,6 +49,8 @@ const IPC = {
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
+  calendarAcknowledge: 'calendar:acknowledge',
+  calendarSkip: 'calendar:skip',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -106,6 +108,8 @@ contextBridge.exposeInMainWorld('pet', {
   calendarDisconnect: () => ipcRenderer.send(IPC.calendarDisconnect),
   calendarJoin: send(IPC.calendarJoin),
   calendarRefresh: () => ipcRenderer.send(IPC.calendarRefresh),
+  calendarAcknowledge: send(IPC.calendarAcknowledge),
+  calendarSkip: send(IPC.calendarSkip),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),

@@ -187,6 +187,8 @@ export const IPC = Object.freeze({
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
+  calendarAcknowledge: 'calendar:acknowledge',
+  calendarSkip: 'calendar:skip',
 })
 
 /*
