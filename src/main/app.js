@@ -175,6 +175,44 @@ export const startApp = () => {
     },
   })
 
+  const timer = createTimer({
+    getSettings,
+    saveSettings,
+    onChange: (event) => {
+      if (event.type === 'started') (react('hop'), say(`tracking “${event.task}”`))
+      if (event.type === 'error') say(event.message, 'sad')
+
+      if (event.type === 'nudged') {
+        say(`${event.minutes > 0 ? '+' : ''}${event.minutes}m — for testing`)
+      }
+
+      if (event.type === 'discarded') {
+        say(`only ${Math.round(event.seconds)}s — not logged`, 'sad')
+      }
+
+      if (event.type === 'stopped') {
+        react('hop')
+        // Queued, never pushed: these become billable records, so the send stays manual.
+        moco
+          .enqueue(event)
+          .then((queued) =>
+            say(
+              queued
+                ? `${formatMinutes(event.minutes)} logged · queued for MOCO`
+                : // Silence here once let a stint look synced when it never was.
+                  `${formatMinutes(event.minutes)} logged · local only, no MOCO task`,
+              queued || !moco.isConnected() ? 'happy' : 'sad',
+            ),
+          )
+          .catch((error) => {
+            console.error('[moco] could not queue that entry:', error)
+            say('logged, but not queued for MOCO', 'sad')
+          })
+      }
+      refresh()
+    },
+  })
+
   const actions = {
     /**
      * The renderer calls this once it is ready. The catalogue is sent here too because a
