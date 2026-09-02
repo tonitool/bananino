@@ -30,9 +30,10 @@
 }
 
 /*
- * The strip where the character stands is reserved as padding. Anything laid out there
- * is drawn under the character and, worse, is unreachable: a click that lands on the
- * silhouette is claimed by the character, so buttons behind it can never be pressed.
+ * The strip the character reaches into is reserved as padding (--panel-foot). Anything
+ * laid out there is drawn under the character and, worse, is unreachable: a click that
+ * lands on the silhouette is claimed by the character, so buttons behind it can never be
+ * pressed.
  */
 #stage[data-side='right'] .panel {
   right: 0;
@@ -51,13 +52,13 @@
 #stage[data-place='above'] .panel {
   top: 0;
   z-index: 2;
-  padding-bottom: calc(var(--panel-overlap) + 10px);
+  padding-bottom: var(--panel-foot);
 }
 
 #stage[data-place='below'] .panel {
   bottom: 0;
   z-index: 3;
-  padding-top: calc(var(--panel-overlap) + 10px);
+  padding-top: var(--panel-foot);
 }
 
 #stage[data-panel='closed'][data-place='above'] .panel {
@@ -92,6 +93,11 @@
   padding: 3px;
   border-radius: var(--radius-pill);
   background: var(--cream-sunk);
+}
+
+/* `display: flex` above beats the attribute's own display: none, as for .tab-panel. */
+.tabs[hidden] {
+  display: none;
 }
 
 .tab {

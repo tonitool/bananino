@@ -1,6 +1,5 @@
 import { Menu } from 'electron'
 import {
-  CHARACTER_MENU,
   CORNERS,
   COSTUME_MENU,
   DANCE_MENU,
@@ -47,15 +46,9 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
     click: () => actions.openPanel('clips'),
   },
   { type: 'separator' },
-  {
-    label: 'Character',
-    submenu: CHARACTER_MENU.map(([id, label]) => ({
-      label,
-      type: 'radio',
-      checked: settings.character === id,
-      click: () => actions.setCharacter(id),
-    })),
-  },
+  // Opens the panel's settings view rather than repeating it as a submenu: choosing a
+  // character is a look-at-it decision, and the cards show which one is loading.
+  { label: 'Settings…', click: () => actions.openPanel('settings') },
   {
     label: 'Costume',
     submenu: COSTUME_MENU.map(([name, label]) => ({

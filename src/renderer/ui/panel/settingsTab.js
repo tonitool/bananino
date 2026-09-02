@@ -4,11 +4,14 @@ import { COSTUMES } from '../../scene/costumes.js'
 
 /**
  * Everything about how the buddy looks, in one place: who it is, what it is wearing and
- * whether it is dancing. The character is the reason this view exists — swapping the
- * model means fetching and measuring megabytes of mesh, so the card that was pressed
- * says it is working rather than sitting there looking ignored.
+ * whether it is dancing. Opened from the right-click menu rather than a tab, so it has to
+ * carry its own title and its own way out.
+ *
+ * The character is the reason this view exists — swapping the model means fetching and
+ * measuring megabytes of mesh, so the card that was pressed says it is working rather
+ * than sitting there looking ignored.
  */
-export const createSettingsTab = ({ onCharacter, onCostume, onDance }) => {
+export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) => {
   let current = null
   let pending = null
   let costume = 'none'
@@ -65,7 +68,11 @@ export const createSettingsTab = ({ onCharacter, onCostume, onDance }) => {
     onclick: onDance,
   })
 
-  const root = el('section', { class: 'tab-panel', id: 'tab-settings', role: 'tabpanel' }, [
+  const root = el('section', { class: 'tab-panel', id: 'tab-settings', role: 'group', 'aria-label': 'Settings' }, [
+    el('div', { class: 'settings-head' }, [
+      el('h2', { class: 'settings-title', text: 'Settings' }),
+      el('button', { class: 'button button--quiet', type: 'button', text: 'Done', onclick: onClose }),
+    ]),
     el('p', { class: 'section-title', text: 'Character' }),
     el('div', { class: 'character-picker', role: 'group', 'aria-label': 'Character' }, [
       ...cards.values(),

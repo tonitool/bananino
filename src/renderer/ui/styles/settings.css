@@ -1,5 +1,19 @@
 /* ---------- settings: character, costume, dance ---------- */
 
+/* This view has no tab of its own, so it says what it is and how to leave. */
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-title {
+  font-size: var(--text-base);
+  font-weight: 750;
+  color: var(--cocoa);
+}
+
 .character-picker {
   display: flex;
   gap: 7px;

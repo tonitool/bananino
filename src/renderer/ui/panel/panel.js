@@ -22,10 +22,14 @@ const TABS = [
   ['clips', 'Clips'],
   ['meet', 'Meet'],
   ['calendar', 'Cal'],
-  // A glyph, not a word: six words do not fit across the panel, and the gear is the one
-  // label everyone already reads as "settings".
-  ['settings', '⚙', 'Settings'],
 ]
+
+/**
+ * Settings is a view without a tab: it is reached from the right-click menu, and while it
+ * is showing the tab bar steps aside — a tab strip with nothing selected reads as broken,
+ * and the panel is not wide enough for a sixth tab that is used once a month.
+ */
+const SETTINGS = 'settings'
 
 /**
  * The panel itself: a timer strip that is always in reach, and one tab for writing notes
@@ -164,21 +168,22 @@ export const createPanel = ({ actions }) => {
     onCharacter: (id) => actions.setCharacter(id),
     onCostume: (name) => actions.setCostume(name),
     onDance: () => actions.toggleDance(),
+    onClose: () => focusTab(lastTab),
   })
 
   const panels = { time, note, clips, meet, calendar, settings }
   let activeTab = 'note'
+  /** Where Done goes back to, so settings never strands you on a view you did not pick. */
+  let lastTab = TABS[0][0]
 
   const tabButtons = new Map(
-    TABS.map(([id, label, name]) => [
+    TABS.map(([id, label]) => [
       id,
       el('button', {
         class: 'tab',
         type: 'button',
         role: 'tab',
         text: label,
-        'aria-label': name ?? label,
-        title: name ?? false,
         onclick: () => focusTab(id),
       }),
     ]),
@@ -187,10 +192,12 @@ export const createPanel = ({ actions }) => {
   const summary = el('span', { class: 'summary' })
   const mocoDot = el('span', { class: 'moco-dot', 'aria-hidden': 'true' })
 
+  const tabBar = el('div', { class: 'tabs', role: 'tablist' }, [...tabButtons.values()])
+
   const root = el('section', { class: 'panel', 'aria-label': 'Bananino' }, [
     running.root,
     upcoming.root,
-    el('div', { class: 'tabs', role: 'tablist' }, [...tabButtons.values()]),
+    tabBar,
     time.root,
     note.root,
     clips.root,
@@ -212,11 +219,17 @@ export const createPanel = ({ actions }) => {
   /** Unknown ids fall back rather than blanking the panel. */
   function focusTab(requested) {
     const id = Object.hasOwn(panels, requested) ? requested : TABS[0][0]
+    if (activeTab !== SETTINGS) lastTab = activeTab
     activeTab = id
+
     for (const [tabId, button] of tabButtons) {
       button.setAttribute('aria-selected', String(tabId === id))
-      setHidden(panels[tabId].root, tabId !== id)
     }
+    for (const [panelId, view] of Object.entries(panels)) {
+      setHidden(view.root, panelId !== id)
+    }
+    setHidden(tabBar, id === SETTINGS)
+
     panels[id].focus()
   }
 

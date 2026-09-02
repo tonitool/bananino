@@ -42,6 +42,22 @@
    */
   --floor: 0.215;
   --panel-overlap: 52px;
+  /*
+   * The strip of panel kept clear of controls at the edge the character stands on.
+   *
+   * It used to be the whole overlap, which reserved far too much: the overlap is how far
+   * the character's *canvas* rides over the panel, and that canvas is mostly empty air.
+   * The character itself reaches only `overlap - 67` px past the panel's edge — 7px at
+   * today's 74 — because it is drawn 137px tall with its feet 0.215 up a 260px canvas.
+   * Reserving all of it left a band of blank panel between the last control and the
+   * character, so the two stopped reading as one thing.
+   *
+   * So: what the silhouette actually reaches into, plus 29px of breathing room, and never
+   * less than 24. Content must stay off the silhouette — a click that lands on it is
+   * claimed by the character — so this is worth re-deriving if the camera framing, the
+   * character size or PANEL.overlap changes.
+   */
+  --panel-foot: max(24px, var(--panel-overlap) - 38px);
 
   --shadow-scale: 1;
   --shadow-alpha: 0.2;

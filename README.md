@@ -76,10 +76,11 @@ breaks. They are listed in the menu bar icon's menu too.
 
 ## The panel
 
-One view at a time — **Time · Note · Clips · Meet · Cal · ⚙** — because a single screen
-holding all of them left every part too small, and overlapping whenever one grew. A running
-timer is the one thing shown on every view, as a slim strip you can click to jump back to
-Time.
+One view at a time — **Time · Note · Clips · Meet · Cal** — because a single screen holding
+all of them left every part too small, and overlapping whenever one grew. A running timer is
+the one thing shown on every view, as a slim strip you can click to jump back to Time.
+**Settings** is a sixth view without a tab: right-click the character → **Settings…**, and
+**Done** puts you back on the view you came from.
 
 **Time** is the timer and its MOCO status. Recent tasks are one-tap chips; typing at least
 two letters searches your MOCO projects. While a timer runs there is a **description**
@@ -117,10 +118,10 @@ because the character hides about a second after your cursor leaves.
 
 ## Who lives in your corner
 
-The **⚙** tab in the panel picks the character: **Bananino** or the **Cat**. The menu bar
-icon (and right-click on the character) has the same list under **Character**. The choice
-is remembered, and the app boots straight into it — the model is handed to the window at
-launch, so a restart never flashes the character you left behind.
+Right-click the character (or click the menu bar icon) → **Settings…** and pick one:
+**Bananino** or the **Cat**. The choice is remembered, and the app boots straight into it —
+the model is handed to the window at launch, so a restart never flashes the character you
+left behind.
 
 Switching swaps the mesh inside the existing rig, which is why nothing else has to move:
 the pose, the costume, the radio and the clock all belong to the rig rather than to the
@@ -134,7 +135,7 @@ characters.js](src/renderer/scene/characters.js), one entry in `CHARACTER_MENU` 
 
 ## Dress up
 
-The **⚙** tab, the menu bar icon and right-click on the character all have **Costume** —
+**Settings…**, the menu bar icon and right-click on the character all have **Costume** —
 party hat, Santa hat, headphones, shades, crown, beanie — and **Dance**: bounce, sway,
 twist, shimmy, headbang, spin. The costume is remembered between launches; dancing stops
 when you quit.
