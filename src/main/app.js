@@ -293,23 +293,6 @@ export const startApp = () => {
       refresh()
     },
 
-    /**
-     * "Book with me" pages exist to be handed around — that's the point of the link — so
-     * this one deliberately lives in plain settings rather than the Keychain.
-     */
-    bookingSet: (url) => {
-      const trimmed = String(url ?? '').trim()
-      if (trimmed && !trimmed.startsWith('https://')) return say('https links only', 'sad')
-      saveSettings({ bookingUrl: trimmed })
-      say(trimmed ? 'booking link saved' : 'booking link removed')
-      refresh()
-    },
-
-    bookingCopy: () => {
-      if (!settings.bookingUrl) return say('no booking link saved', 'sad')
-      void copyText(settings.bookingUrl, 'booking link copied')
-    },
-
     /** Join links are opened by us, so only meeting hosts get handed to the browser. */
     calendarJoin: async (url) => {
       let parsed

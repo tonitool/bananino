@@ -17,15 +17,7 @@ const describeWhen = (event, now) => {
  * needs write access, which means OAuth — that path returns when it exists; until then,
  * create meetings in Outlook and they show up here.
  */
-export const createCalendarTab = ({
-  onConnect,
-  onDisconnect,
-  onJoin,
-  onRecord,
-  onRefresh,
-  onBookingSet,
-  onBookingCopy,
-}) => {
+export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, onRefresh }) => {
   const feedUrl = el('input', {
     class: 'timer-input',
     type: 'password',
@@ -76,38 +68,12 @@ export const createCalendarTab = ({
     onclick: onDisconnect,
   })
 
-  const bookingInput = el('input', {
-    class: 'timer-input',
-    type: 'url',
-    placeholder: 'Book-with-me link (optional)',
-    'aria-label': 'Booking link',
-    autocomplete: 'off',
-  })
-  const bookingSave = el('button', {
-    class: 'button--small button',
-    type: 'button',
-    text: 'Save',
-    onclick: () => onBookingSet(bookingInput.value.trim()),
-  })
-  const bookingCopyButton = el('button', {
-    class: 'button--small button',
-    type: 'button',
-    text: 'Copy booking link',
-    onclick: onBookingCopy,
-  })
-
-  const bookingRow = el('div', { class: 'cal-booking' }, [
-    el('div', { class: 'row' }, [bookingInput, bookingSave]),
-    bookingCopyButton,
-  ])
-
   // The error lives outside both views so failures are visible connected or not.
   const root = el('section', { class: 'tab-panel', id: 'tab-calendar', role: 'tabpanel' }, [
     connectView,
     linkedView,
     error,
     unlinkButton,
-    bookingRow,
   ])
 
   let isConnected = false
@@ -158,13 +124,6 @@ export const createCalendarTab = ({
     error.textContent = calendar.lastError ?? ''
     setHidden(error, !calendar.lastError)
 
-    const savedBooking = snapshot.settings?.bookingUrl ?? ''
-    // Don't stomp the field while someone is typing into it.
-    if (savedBooking !== bookingInput.dataset.saved) {
-      bookingInput.dataset.saved = savedBooking
-      if (document.activeElement !== bookingInput) bookingInput.value = savedBooking
-    }
-    setHidden(bookingCopyButton, !savedBooking)
   }
 
   return {

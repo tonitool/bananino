@@ -143,8 +143,6 @@ async function boot() {
       calendarDisconnect: () => bridge.calendarDisconnect(),
       calendarJoin: (url) => bridge.calendarJoin({ url }),
       calendarRefresh: () => bridge.calendarRefresh(),
-      bookingSet: (url) => bridge.bookingSet({ url }),
-      bookingCopy: () => bridge.bookingCopy(),
     },
   })
   elements.stage.append(panel.root)
