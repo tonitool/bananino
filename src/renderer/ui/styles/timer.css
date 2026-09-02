@@ -251,6 +251,70 @@
   flex: 1;
 }
 
+/*
+ * The MOCO suggestion dropdown floats over the panel, anchored to the timer card that
+ * spawned it. (These base styles went missing before the first commit — an open dropdown
+ * fell all the way back to the browser's default list/button look.)
+ */
+.suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 210px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-card);
+  background: var(--cream);
+  box-shadow: var(--shadow-panel);
+}
+
+.suggestions:empty {
+  display: none;
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: var(--cream-sunk);
+}
+
+.suggestion-task {
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.suggestion-project {
+  font-size: var(--text-xs);
+  color: var(--cocoa-soft);
+}
+
+.suggestion-empty {
+  padding: 7px 9px;
+  font-size: var(--text-xs);
+  color: var(--cocoa-soft);
+}
+
 /* Inside the form the list belongs in the flow, not floating over the panel. */
 .suggestions--inline {
   position: static;
