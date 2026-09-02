@@ -150,7 +150,7 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
   update
     ? { label: `Download v${update.version}…`, click: actions.openUpdate }
     : { label: 'Check for updates', click: actions.checkForUpdates },
-  { label: 'Quit lualala', accelerator: 'Command+Q', click: actions.quit },
+  { label: 'Quit Bananino', accelerator: 'Command+Q', click: actions.quit },
 ]
 
 export const popupMenu = ({ win, onClose, ...options }) =>

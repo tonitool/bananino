@@ -14,21 +14,21 @@ const run = promisify(execFile)
  * broken. Requiring a rendered frame is the only check that actually means "it works".
  */
 const target = process.argv[2] === 'packaged'
-  ? 'release/mac-arm64/lualala.app/Contents/MacOS/lualala'
+  ? 'release/mac-arm64/Bananino.app/Contents/MacOS/Bananino'
   : null
 
 // A running copy holds the single-instance lock, so a second one quits silently and this
 // would report a failure that is really just "the app is already open".
-const running = await run('pgrep', ['-f', 'lualala.app/Contents/MacOS/lualala']).then(
+const running = await run('pgrep', ['-f', 'Bananino.app/Contents/MacOS/Bananino']).then(
   () => true,
   () => false,
 )
 if (running) {
-  console.error('verify: another copy of lualala is running — quit it first (menu bar → Quit).')
+  console.error('verify: another copy of Bananino is running — quit it first (menu bar → Quit).')
   process.exit(1)
 }
 
-const snapshot = join(tmpdir(), `lualala-verify-${Date.now()}.png`)
+const snapshot = join(tmpdir(), `bananino-verify-${Date.now()}.png`)
 rmSync(snapshot, { force: true })
 
 const [command, args] = target

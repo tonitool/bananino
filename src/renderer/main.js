@@ -50,7 +50,7 @@ const elements = {
 }
 
 boot().catch((error) => {
-  console.error('lualala failed to start:', error)
+  console.error('Bananino failed to start:', error)
   elements.bubble.textContent = 'i could not wake up 😵'
   elements.bubble.classList.add('is-visible')
 })

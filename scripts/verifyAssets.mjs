@@ -8,7 +8,7 @@ import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const BUILD_DIR = 'build'
-const ASAR = 'release/mac-arm64/lualala.app/Contents/Resources/app.asar'
+const ASAR = 'release/mac-arm64/Bananino.app/Contents/Resources/app.asar'
 
 const walk = (dir) =>
   readdirSync(dir).flatMap((entry) => {
@@ -40,8 +40,8 @@ if (missing.length > 0) {
  * exec a file inside an asar. They are checked here too: without them the meeting
  * feature fails only at the moment a user presses Record.
  */
-const HELPERS = ['lualala-audio-tap', 'whisper-cli']
-const helperDir = 'release/mac-arm64/lualala.app/Contents/Resources/bin'
+const HELPERS = ['bananino-audio-tap', 'whisper-cli']
+const helperDir = 'release/mac-arm64/Bananino.app/Contents/Resources/bin'
 const missingHelpers = HELPERS.filter((name) => {
   try {
     statSync(join(helperDir, name))

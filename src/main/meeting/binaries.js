@@ -14,7 +14,7 @@ const executable = async (path) => {
   return path
 }
 
-export const audioTapBinary = () => executable(join(binDir(), 'lualala-audio-tap'))
+export const audioTapBinary = () => executable(join(binDir(), 'bananino-audio-tap'))
 export const whisperBinary = () => executable(join(binDir(), 'whisper-cli'))
 
 /** Reported in the UI so a broken install is diagnosable rather than merely silent. */

@@ -36,12 +36,12 @@ export const createPetWindow = () => {
   // Forwarding keeps mousemove flowing so the renderer can tell when to become clickable.
   win.setIgnoreMouseEvents(true, { forward: true })
 
-  // LUALALA_YAW re-aims a swapped-in model and LUALALA_ZOOM reframes the camera, both
+  // BANANINO_YAW re-aims a swapped-in model and BANANINO_ZOOM reframes the camera, both
   // without touching the source.
   const query = Object.fromEntries(
     [
-      ['yaw', process.env.LUALALA_YAW],
-      ['zoom', process.env.LUALALA_ZOOM],
+      ['yaw', process.env.BANANINO_YAW],
+      ['zoom', process.env.BANANINO_ZOOM],
     ].filter(([, value]) => value),
   )
   win.loadFile(PAGE, Object.keys(query).length > 0 ? { query } : undefined)

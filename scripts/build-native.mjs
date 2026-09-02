@@ -9,7 +9,7 @@ import { join } from 'node:path'
 
 const SOURCE_DIR = 'native/audioTap'
 const OUT_DIR = 'resources/bin'
-const BINARY = 'lualala-audio-tap'
+const BINARY = 'bananino-audio-tap'
 
 mkdirSync(OUT_DIR, { recursive: true })
 

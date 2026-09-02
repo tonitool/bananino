@@ -1,9 +1,9 @@
 import Foundation
 
 /*
- * lualala-audio-tap — records a meeting to 16 kHz mono WAVs ready for whisper.cpp.
+ * bananino-audio-tap — records a meeting to 16 kHz mono WAVs ready for whisper.cpp.
  *
- *   lualala-audio-tap --system out/system.wav [--seconds 30]
+ *   bananino-audio-tap --system out/system.wav [--seconds 30]
  *
  * System audio only. The microphone is captured in the renderer instead: TCC attributes
  * microphone access per binary, and this helper has its own ad-hoc signature, so macOS

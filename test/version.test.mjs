@@ -24,13 +24,13 @@ test('an unparseable version never prompts an update', () => {
 })
 
 test('the repository is read from the usual URL shapes', () => {
-  assert.deepEqual(parseRepository('https://github.com/acme/lualala'), { owner: 'acme', repo: 'lualala' })
-  assert.deepEqual(parseRepository('https://github.com/acme/lualala.git'), { owner: 'acme', repo: 'lualala' })
-  assert.deepEqual(parseRepository('git@github.com:acme/lualala.git'), { owner: 'acme', repo: 'lualala' })
+  assert.deepEqual(parseRepository('https://github.com/acme/bananino'), { owner: 'acme', repo: 'bananino' })
+  assert.deepEqual(parseRepository('https://github.com/acme/bananino.git'), { owner: 'acme', repo: 'bananino' })
+  assert.deepEqual(parseRepository('git@github.com:acme/bananino.git'), { owner: 'acme', repo: 'bananino' })
 })
 
 test('an unset placeholder disables checking rather than calling a fake repo', () => {
   assert.equal(parseRepository('https://github.com/OWNER/REPO'), null)
-  assert.equal(parseRepository('https://example.com/acme/lualala'), null)
+  assert.equal(parseRepository('https://example.com/acme/bananino'), null)
   assert.equal(parseRepository(''), null)
 })

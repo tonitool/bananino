@@ -1,5 +1,5 @@
 {
-  "name": "lualala",
+  "name": "bananino",
   "version": "1.0.0",
   "description": "A 3D desktop buddy for macOS that takes notes, tracks time, and remembers your clipboard.",
   "type": "module",
@@ -34,8 +34,8 @@
     "three": "^0.185.1"
   },
   "build": {
-    "appId": "de.clueone.lualala",
-    "productName": "lualala",
+    "appId": "de.clueone.bananino",
+    "productName": "Bananino",
     "directories": {
       "buildResources": "resources",
       "output": "release"
@@ -67,9 +67,9 @@
       "identity": null,
       "extendInfo": {
         "LSUIElement": true,
-        "NSAppleEventsUsageDescription": "lualala asks Music and Spotify what is playing, so it can show the track on your desktop.",
-        "NSAudioCaptureUsageDescription": "lualala records what your meeting participants say, so it can transcribe the meeting on this Mac.",
-        "NSMicrophoneUsageDescription": "lualala records your voice during a meeting, so it can transcribe the meeting on this Mac."
+        "NSAppleEventsUsageDescription": "Bananino asks Music and Spotify what is playing, so it can show the track on your desktop.",
+        "NSAudioCaptureUsageDescription": "Bananino records what your meeting participants say, so it can transcribe the meeting on this Mac.",
+        "NSMicrophoneUsageDescription": "Bananino records your voice during a meeting, so it can transcribe the meeting on this Mac."
       },
       "hardenedRuntime": true,
       "entitlements": "resources/entitlements.mac.plist",
@@ -78,7 +78,7 @@
     },
     "copyright": "Copyright \u00a9 2026 Clue One",
     "dmg": {
-      "title": "lualala",
+      "title": "Bananino",
       "contents": [
         {
           "x": 140,
@@ -109,9 +109,9 @@
   "author": {
     "name": "Clue One"
   },
-  "homepage": "https://github.com/tonitool/lualala",
+  "homepage": "https://github.com/tonitool/bananino",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tonitool/lualala.git"
+    "url": "https://github.com/tonitool/bananino.git"
   }
 }

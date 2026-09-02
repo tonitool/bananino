@@ -149,7 +149,7 @@ export const createPanel = ({ actions }) => {
   const summary = el('span', { class: 'summary' })
   const mocoDot = el('span', { class: 'moco-dot', 'aria-hidden': 'true' })
 
-  const root = el('section', { class: 'panel', 'aria-label': 'lualala' }, [
+  const root = el('section', { class: 'panel', 'aria-label': 'Bananino' }, [
     running.root,
     el('div', { class: 'tabs', role: 'tablist' }, [...tabButtons.values()]),
     time.root,

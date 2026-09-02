@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-export const DATA_FOLDER_NAME = 'lualala'
+export const DATA_FOLDER_NAME = 'bananino'
 
 export const defaultDataDir = () => join(app.getPath('documents'), DATA_FOLDER_NAME)
 

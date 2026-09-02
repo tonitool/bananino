@@ -1,4 +1,4 @@
-# lualala
+# Bananino
 
 A 3D banana buddy that lives in the corner of your Mac. Brush the corner with your cursor
 and it slides in; click it and it hands you a panel for **notes**, **fast time tracking**,
@@ -8,11 +8,11 @@ and **clipboard history**. Everything is stored as plain files on your own disk.
 
 ## Install on a Mac (no build needed)
 
-1. Download `lualala-*-arm64.dmg` from
-   [**Releases**](https://github.com/tonitool/lualala/releases).
-2. Open the DMG and drag **lualala** into **Applications**.
+1. Download `Bananino-*-arm64.dmg` from
+   [**Releases**](https://github.com/tonitool/bananino/releases).
+2. Open the DMG and drag **Bananino** into **Applications**.
 3. The app is unsigned, so launch it once with **right-click → Open**
-   (or run `xattr -dr com.apple.quarantine /Applications/lualala.app`).
+   (or run `xattr -dr com.apple.quarantine /Applications/Bananino.app`).
 4. Optional: add it under **System Settings → General → Login Items** so it
    starts with your Mac.
 
@@ -36,11 +36,11 @@ npm run optimise-model   # first time only: generates assets/character.glb from 
 npm run dist
 ```
 
-Produces `release/mac-arm64/lualala.app`. Drag it to `/Applications`, then add it under
+Produces `release/mac-arm64/Bananino.app`. Drag it to `/Applications`, then add it under
 **System Settings → General → Login Items** to have it there at startup.
 
 It is unsigned, so the first launch needs a right-click → **Open** (or
-`xattr -dr com.apple.quarantine /Applications/lualala.app`).
+`xattr -dr com.apple.quarantine /Applications/Bananino.app`).
 
 ## Waking it up
 
@@ -51,7 +51,7 @@ would rather it just stayed out.
 
 > **macOS Quick Note uses the bottom-right hot corner too.** Turn it off under
 > **System Settings → Desktop & Dock → Hot Corners** so only one of them fires, or move
-> lualala to a different corner.
+> Bananino to a different corner.
 
 ## Shortcuts
 
@@ -138,11 +138,11 @@ billable records, so they are shown before they are submitted.
 
 ## Where your data goes
 
-Everything is plain files in `~/Documents/lualala` (changeable via **Change folder…** —
+Everything is plain files in `~/Documents/bananino` (changeable via **Change folder…** —
 point it at iCloud Drive, a Dropbox folder, or an Obsidian vault):
 
 ```
-lualala/
+bananino/
 ├── notes/2026-09-01.md     one Markdown file per day, newest entry at the bottom
 └── time/2026-09.csv        date,start,end,minutes,task
 ```
@@ -151,7 +151,7 @@ The CSV is properly quoted, so tasks containing commas or quotes survive a round
 Excel or Numbers.
 
 **Clipboard history** is the exception: it lives in
-`~/Library/Application Support/lualala/clips.json`, capped at 100 entries, because it is a
+`~/Library/Application Support/Bananino/clips.json`, capped at 100 entries, because it is a
 cache rather than a document. It is **not encrypted**. Clips that a password manager marks
 as concealed, transient, or auto-generated are never recorded, and if the pasteboard
 cannot be inspected the entry is dropped rather than risked. You can pause capture
@@ -238,7 +238,7 @@ Drop a `.glb` at `assets/character.glb` and run `npm run build`. It is normalise
 unit tall and stood on the floor automatically. If it does not face the camera:
 
 ```bash
-LUALALA_YAW=1.5707963 npm start
+BANANINO_YAW=1.5707963 npm start
 ```
 
 Once you know the value, set `DEFAULT_YAW` in

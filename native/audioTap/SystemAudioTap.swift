@@ -23,7 +23,7 @@ final class SystemAudioTap {
         // Excluding our own process would silence the tap when the app itself plays audio;
         // we exclude nothing and rely on the app being quiet during a meeting.
         let description = CATapDescription(monoGlobalTapButExcludeProcesses: [])
-        description.name = "lualala meeting tap"
+        description.name = "Bananino meeting tap"
         description.isPrivate = true
         description.muteBehavior = .unmuted
 
@@ -45,7 +45,7 @@ final class SystemAudioTap {
             throw TapError.noDefaultOutput
         }
         let aggregate: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "lualala meeting aggregate",
+            kAudioAggregateDeviceNameKey: "Bananino meeting aggregate",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,

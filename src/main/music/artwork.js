@@ -19,7 +19,7 @@ export const fetchArtwork = async ({ playerId, osascript }) => {
   const player = PLAYERS.find(({ id }) => id === playerId)
   if (!player) return null
 
-  const destination = join(app.getPath('temp'), 'lualala-artwork.bin')
+  const destination = join(app.getPath('temp'), 'bananino-artwork.bin')
   const output = (await osascript(artworkScript(player, destination))).trim()
   if (!output) return null
 

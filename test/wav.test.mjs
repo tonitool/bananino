@@ -28,7 +28,7 @@ test('samples are clamped rather than wrapped around', () => {
 })
 
 test('a streamed file ends up with a header matching what was written', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'lualala-wav-'))
+  const dir = await mkdtemp(join(tmpdir(), 'bananino-wav-'))
   try {
     const path = join(dir, 'out.wav')
     const writer = await createWavWriter({ path, sampleRate: 16000 })
@@ -51,7 +51,7 @@ test('a streamed file ends up with a header matching what was written', async ()
 })
 
 test('appending nothing is a no-op rather than a corrupt file', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'lualala-wav-'))
+  const dir = await mkdtemp(join(tmpdir(), 'bananino-wav-'))
   try {
     const path = join(dir, 'empty.wav')
     const writer = await createWavWriter({ path, sampleRate: 16000 })
@@ -69,7 +69,7 @@ test('appending nothing is a no-op rather than a corrupt file', async () => {
 test('concurrent appends do not overwrite each other', async () => {
   // Regression: appends used to read `dataBytes` before awaiting their write, so two
   // in-flight chunks resolved to the same file offset and one was lost.
-  const dir = await mkdtemp(join(tmpdir(), 'lualala-wav-'))
+  const dir = await mkdtemp(join(tmpdir(), 'bananino-wav-'))
   try {
     const path = join(dir, 'race.wav')
     const writer = await createWavWriter({ path, sampleRate: 16000 })
@@ -96,7 +96,7 @@ test('concurrent appends do not overwrite each other', async () => {
 })
 
 test('level is tracked so silent and quiet tracks can be recognised', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'lualala-wav-'))
+  const dir = await mkdtemp(join(tmpdir(), 'bananino-wav-'))
   try {
     const silence = await createWavWriter({ path: join(dir, 'silent.wav'), sampleRate: 16000 })
     await silence.append(new Float32Array(1600).fill(0))

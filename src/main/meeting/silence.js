@@ -8,7 +8,7 @@ import { MEETING } from '../constants.js'
 const MESSAGES = Object.freeze({
   system:
     "The other participants' audio was silent. Check that the meeting was actually " +
-    'playing through this Mac, and that lualala has System Audio Recording permission ' +
+    'playing through this Mac, and that Bananino has System Audio Recording permission ' +
     'in System Settings › Privacy & Security.',
   mic:
     'Your microphone was silent — check the input device, and that nothing else has ' +

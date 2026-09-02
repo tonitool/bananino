@@ -1,4 +1,4 @@
-export const APP_NAME = 'lualala'
+export const APP_NAME = 'Bananino'
 
 /** Window footprint with the panel closed — just the character. */
 export const WINDOW_SIZES = Object.freeze({

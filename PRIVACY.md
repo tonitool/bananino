@@ -1,17 +1,17 @@
 # Privacy
 
-lualala runs entirely on your Mac. There is no account, no telemetry, no analytics, and no
+Bananino runs entirely on your Mac. There is no account, no telemetry, no analytics, and no
 server belonging to this app.
 
 ## What it stores, and where
 
 **Notes and time entries** — plain files in the folder you choose, by default
-`~/Documents/lualala`:
+`~/Documents/bananino`:
 
 - `notes/YYYY-MM-DD.md` — one Markdown file per day
 - `time/YYYY-MM.csv` — one CSV per month
 
-**Clipboard history** — `~/Library/Application Support/lualala/clips.json`, capped at 100
+**Clipboard history** — `~/Library/Application Support/Bananino/clips.json`, capped at 100
 entries. This is **not encrypted**. Anything you copy while the feature is on may be
 recorded, so it is worth knowing:
 
@@ -20,7 +20,7 @@ recorded, so it is worth knowing:
 - You can turn capture off entirely: menu bar icon → **Remember clipboard**.
 - **Clear unpinned** in the Clips tab empties the history.
 
-**Settings** — `~/Library/Application Support/lualala/pet-state.json`.
+**Settings** — `~/Library/Application Support/Bananino/pet-state.json`.
 
 **Your MOCO API key** — encrypted with macOS `safeStorage`, which is backed by your login
 Keychain. It is never written in plain text and never logged.
@@ -45,5 +45,5 @@ Notes and time entries are your files; delete them like any other. To remove eve
 app keeps for itself:
 
 ```bash
-rm -rf ~/Library/Application\ Support/lualala
+rm -rf ~/Library/Application\ Support/bananino
 ```
