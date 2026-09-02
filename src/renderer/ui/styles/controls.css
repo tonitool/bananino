@@ -1,0 +1,77 @@
+/* ---------- buttons ---------- */
+
+.button {
+  flex: none;
+  padding: 8px 15px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    filter var(--duration-fast) ease;
+}
+
+.button:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button--primary,
+.button--start {
+  background: linear-gradient(180deg, var(--butter) 0%, var(--butter-deep) 100%);
+  border-color: var(--butter-deep);
+  color: oklch(32% 0.07 70);
+  box-shadow: 0 1px 0 oklch(100% 0 0 / 0.55) inset;
+}
+
+.button--primary:hover,
+.button--start:hover {
+  filter: brightness(1.04);
+}
+
+.button--stop {
+  background: var(--cream);
+  border-color: oklch(88% 0.05 60);
+  color: var(--blush-deep);
+}
+
+.button--stop:hover {
+  background: oklch(96% 0.05 30);
+}
+
+.button--quiet {
+  padding: 5px 11px;
+  background: transparent;
+  color: var(--cocoa-soft);
+  font-size: var(--text-sm);
+}
+
+.button--quiet:hover:not(:disabled) {
+  background: var(--cream-sunk);
+  color: var(--cocoa);
+}
+
+.link {
+  border: 0;
+  background: none;
+  color: var(--cocoa-soft);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--duration-fast) ease;
+}
+
+.link:hover {
+  color: var(--cocoa);
+  text-decoration-color: currentColor;
+}

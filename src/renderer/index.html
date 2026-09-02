@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob:; worker-src 'self' blob:"
+    />
+    <title>lualala</title>
+    <link rel="stylesheet" href="./renderer.css" />
+  </head>
+  <body>
+    <main id="stage" data-hovered="false" data-dragging="false" data-panel="closed" data-place="above" data-side="right" data-presence="in">
+      <div id="shadow" aria-hidden="true"></div>
+      <canvas id="scene"></canvas>
+      <output id="bubble" aria-live="polite"></output>
+    </main>
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>

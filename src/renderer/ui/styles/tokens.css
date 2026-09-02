@@ -1,0 +1,87 @@
+:root {
+  /* Warm, soft-pop palette pulled from the character itself. */
+  --cream: oklch(98.6% 0.014 92);
+  --cream-sunk: oklch(95.4% 0.026 92);
+  --cream-line: oklch(90% 0.03 90);
+  --butter: oklch(90% 0.13 96);
+  --butter-deep: oklch(82% 0.15 92);
+  --cocoa: oklch(34% 0.05 62);
+  --cocoa-soft: oklch(55% 0.035 62);
+  --blush: oklch(83% 0.09 32);
+  --blush-deep: oklch(70% 0.14 30);
+
+  --radius-panel: 22px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-clock: 27px;
+
+  --duration-fast: 130ms;
+  --duration-normal: 260ms;
+  --duration-slow: 380ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+
+  /* Tight and low-contrast: a transparent window has nothing to cast onto, so wide
+     diffuse shadows read as a grey smudge instead of depth. */
+  --shadow-panel:
+    0 0 0 0.5px oklch(30% 0.04 62 / 0.08),
+    0 2px 6px oklch(30% 0.04 62 / 0.07),
+    0 10px 24px oklch(30% 0.04 62 / 0.1);
+
+  --character-size: 260px;
+  --panel-width: 348px;
+  /*
+   * Where the floor sits inside the character's canvas, as a fraction of its height.
+   * Derived from the camera: visible height is 1.8955 world units and the camera looks at
+   * y=0.54, so world y=0 lands 0.215 of the way up from the bottom. Props that stand on
+   * the floor — and anything meant to line up with them — use this.
+   */
+  --floor: 0.215;
+  --panel-overlap: 52px;
+
+  --shadow-scale: 1;
+  --shadow-alpha: 0.2;
+  --shadow-blur: 5px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, sans-serif;
+  font-size: var(--text-base);
+  color: var(--cocoa);
+}
+
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Set by the --pin-panel dev flag. Screenshots are taken through capturePage, and an
+ * unfocused window is not composited, so CSS transitions sit frozen at their start value
+ * and every capture comes out mid-fade. Removing motion makes captures deterministic.
+ */
+[data-no-motion] *,
+[data-no-motion] *::before,
+[data-no-motion] *::after {
+  transition: none !important;
+  animation: none !important;
+}

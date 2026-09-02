@@ -1,0 +1,406 @@
+/* ---------- character ---------- */
+
+#scene {
+  position: absolute;
+  width: var(--character-size);
+  height: var(--character-size);
+  display: block;
+  /*
+   * The canvas is a square box around the character and is drawn in front of the panel,
+   * so it would otherwise swallow every click in the strip where the two overlap — which
+   * is exactly where the dress-up bar and the footer live. Pointer handling is done on
+   * the stage instead, gated on a raycast against the silhouette.
+   */
+  pointer-events: none;
+}
+
+/*
+ * The character is pinned to whichever edge the window is anchored to, so resizing the
+ * window for the panel cannot move it on screen. Panel above means the character is in
+ * front of it; panel below means the panel covers the character's feet.
+ */
+/* Centred within the panel's width rather than the window's, so the gutter beside it
+   cannot shift the character. */
+#stage[data-side='right'] #scene {
+  right: calc((var(--panel-width) - var(--character-size)) / 2);
+}
+
+#stage[data-side='left'] #scene {
+  left: calc((var(--panel-width) - var(--character-size)) / 2);
+}
+
+#stage[data-place='above'] #scene {
+  bottom: 0;
+  z-index: 3;
+}
+
+/* The character's own arrival is animated in the render loop; see animator.js. */
+#stage[data-presence='out'] #shadow {
+  opacity: 0;
+}
+
+#stage[data-place='below'] #scene {
+  top: 0;
+  z-index: 2;
+}
+
+#stage[data-hovered='true'] {
+  cursor: grab;
+}
+
+#stage[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+#shadow {
+  position: absolute;
+  z-index: 1;
+  width: calc(var(--character-size) * 0.3);
+  aspect-ratio: 3.4 / 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgb(0 0 0 / var(--shadow-alpha)) 0%,
+    transparent 68%
+  );
+  filter: blur(var(--shadow-blur));
+  scale: var(--shadow-scale);
+  pointer-events: none;
+}
+
+/* Hidden while the panel is open: the character stands on the panel, not on the desktop. */
+#stage[data-panel='open'] #shadow {
+  opacity: 0;
+}
+
+/* ---------- speech bubble ---------- */
+
+#bubble {
+  position: absolute;
+  top: 2%;
+  z-index: 4;
+  max-width: 80%;
+  padding: 7px 12px 8px;
+  translate: -50% 0;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-card);
+  background: var(--cream);
+  color: var(--cocoa);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
+  box-shadow: 0 6px 18px oklch(30% 0.04 62 / 0.2);
+  pointer-events: none;
+
+  opacity: 0;
+  scale: 0.86;
+  transform-origin: 50% 120%;
+  transition:
+    opacity var(--duration-fast) ease-out,
+    scale var(--duration-normal) var(--ease-spring);
+}
+
+#stage[data-side='right'] #bubble {
+  right: calc((var(--panel-width) - var(--character-size)) / 2 + var(--character-size) / 2);
+  translate: 50% 0;
+}
+
+#stage[data-side='left'] #bubble {
+  left: calc((var(--panel-width) - var(--character-size)) / 2 + var(--character-size) / 2);
+}
+
+#bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  translate: -50% 0;
+  rotate: 45deg;
+  border-right: 1px solid var(--cream-line);
+  border-bottom: 1px solid var(--cream-line);
+  background: var(--cream);
+}
+
+#bubble.is-visible {
+  opacity: 1;
+  scale: 1;
+}
+
+#bubble[data-tone='sad'] {
+  background: oklch(96% 0.04 30);
+  border-color: oklch(86% 0.07 30);
+  color: var(--blush-deep);
+}
+
+
+/* ---------- status pill ---------- */
+
+/*
+ * A column of badges rather than one pill: a meeting can be recording while the timer
+ * runs, and collapsing them into one line would have to hide one of the two.
+ */
+.status-pill {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  translate: -50% 0;
+  pointer-events: none;
+
+  opacity: 1;
+  transition:
+    opacity var(--duration-fast) ease-out,
+    scale var(--duration-normal) var(--ease-spring);
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 4px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-pill);
+  background: var(--cream);
+  color: var(--cocoa-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px oklch(30% 0.04 62 / 0.14);
+}
+
+/* Recording is the one state worth colouring: it means the mic is live. */
+.pill[data-mode='meeting'] {
+  border-color: oklch(72% 0.16 25 / 0.55);
+  color: oklch(52% 0.17 25);
+}
+
+.pill[hidden] {
+  display: none;
+}
+
+.status-pill[hidden] {
+  display: flex;
+  opacity: 0;
+  scale: 0.8;
+}
+#stage[data-side='right'] .status-pill {
+  right: calc((var(--panel-width) - var(--character-size)) / 2 + var(--character-size) / 2);
+  translate: 50% 0;
+}
+
+#stage[data-side='left'] .status-pill {
+  left: calc((var(--panel-width) - var(--character-size)) / 2 + var(--character-size) / 2);
+}
+
+/* Just above the head, clear of the speech bubble. */
+#stage[data-place='above'] .status-pill {
+  bottom: calc(var(--character-size) * 0.8);
+}
+
+#stage[data-place='below'] .status-pill {
+  top: calc(var(--character-size) * 0.8);
+}
+
+/* Gone entirely while the character is away, rather than floating on its own. */
+#stage[data-presence='out'] .status-pill {
+  opacity: 0;
+  scale: 0.8;
+}
+
+.status-pill[data-mode='tracking'] {
+  border-color: var(--butter-deep);
+  color: oklch(38% 0.07 66);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-pill .pill-icon {
+    animation: none;
+  }
+}
+
+/* The running strip already shows the clock in more detail; a track is not duplicated. */
+#stage[data-panel='open'] .status-pill[data-mode='tracking'] {
+  opacity: 0;
+  scale: 0.8;
+}
+
+.status-pill[data-mode='playing'] {
+  max-width: calc(var(--character-size) * 1.15);
+  border-color: oklch(86% 0.05 300);
+  color: oklch(46% 0.07 300);
+}
+
+.status-pill[data-mode='playing'] .pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- music box ---------- */
+
+.music-box {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 132px;
+  padding: 4px 8px 5px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-card);
+  background: var(--cream);
+  box-shadow: 0 3px 10px oklch(30% 0.04 62 / 0.16);
+  pointer-events: none;
+
+  transition:
+    opacity var(--duration-fast) ease-out,
+    scale var(--duration-normal) var(--ease-spring);
+}
+
+.music-box[hidden] {
+  display: flex;
+  opacity: 0;
+  scale: 0.86;
+}
+
+/*
+ * Sits just beside the radio rather than out at the window edge. The offset is measured
+ * from the character's own box, so it tracks the radio's position in the 3D scene.
+ */
+/*
+ * Floating just above the radio and tucked in beside the character, clear of its face.
+ * Measured up from the character's own feet — never from the window — so the card holds
+ * the same spot whichever corner the panel grows into.
+ */
+.music-box {
+  --music-lift: calc(var(--character-size) * 0.46);
+  --music-inset: calc((var(--panel-width) - var(--character-size)) / 2 + var(--character-size) * 0.63);
+}
+
+#stage[data-side='right'] .music-box {
+  right: var(--music-inset);
+}
+
+#stage[data-side='left'] .music-box {
+  left: var(--music-inset);
+}
+
+#stage[data-place='above'] .music-box {
+  bottom: var(--music-lift);
+}
+
+#stage[data-place='below'] .music-box {
+  bottom: calc(100% - var(--character-size) + var(--music-lift));
+}
+
+#stage[data-presence='out'] .music-box,
+#stage[data-panel='open'] .music-box {
+  opacity: 0;
+  scale: 0.86;
+}
+
+.music-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.music-title,
+.music-artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--cocoa);
+}
+
+.music-artist {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--cocoa-soft);
+}
+
+.music-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 13px;
+}
+
+.music-bars i {
+  width: 2.5px;
+  border-radius: 1px;
+  background: var(--butter-deep);
+  animation: equalise 900ms ease-in-out infinite;
+  animation-delay: calc(var(--bar) * 130ms);
+}
+
+@keyframes equalise {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .music-bars i {
+    animation: none;
+    height: 60%;
+  }
+}
+
+.music-art {
+  position: relative;
+  flex: none;
+  width: 21px;
+  height: 21px;
+}
+
+.music-cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  object-fit: cover;
+  box-shadow: 0 1px 3px oklch(30% 0.04 62 / 0.3);
+}
+
+.music-cover[hidden] {
+  display: none;
+}
+
+/* Shown when the player offers no cover. Turned from the render loop, not by CSS. */
+.music-disc {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--cream) 0 18%, transparent 18%),
+    conic-gradient(
+      from 0deg,
+      oklch(38% 0.03 60) 0deg 80deg,
+      oklch(52% 0.03 60) 80deg 180deg,
+      oklch(34% 0.03 60) 180deg 280deg,
+      oklch(48% 0.03 60) 280deg 360deg
+    );
+  box-shadow: 0 1px 3px oklch(30% 0.04 62 / 0.3);
+}
+
+.music-disc[hidden] {
+  display: none;
+}

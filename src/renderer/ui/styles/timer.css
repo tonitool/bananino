@@ -1,0 +1,355 @@
+/* ---------- timer ---------- */
+
+.timer {
+  flex: none;
+  /* Anchors the suggestion dropdown, and lifts it above the rest of the panel. */
+  position: relative;
+  z-index: 4;
+  padding: 11px 12px 12px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-card);
+  background: var(--cream-sunk);
+  box-shadow: inset 0 1px 2px oklch(30% 0.04 62 / 0.06);
+}
+
+.timer[data-state='running'] {
+  background: linear-gradient(180deg, var(--butter) 0%, var(--butter-deep) 130%);
+  border-color: var(--butter-deep);
+}
+
+.timer[data-state='idle'] .timer-running-view,
+.timer[data-state='running'] .timer-idle {
+  display: none;
+}
+
+.timer-running {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.timer-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.timer-clock {
+  font-size: var(--text-clock);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.timer-task {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: oklch(38% 0.06 66);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-idle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timer-entry {
+  display: flex;
+  gap: 8px;
+}
+
+.timer-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--cream-line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+}
+
+.timer-input::placeholder {
+  color: var(--cocoa-soft);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.chips:empty {
+  display: none;
+}
+
+.chip {
+  max-width: 100%;
+  padding: 5px 11px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-pill);
+  background: var(--cream);
+  color: var(--cocoa-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.chip:hover {
+  background: var(--butter);
+  color: var(--cocoa);
+  transform: translateY(-1px);
+}
+
+.chip:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ---------- running strip ---------- */
+
+.running-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--butter-deep);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, var(--butter) 0%, var(--butter-deep) 140%);
+  color: var(--cocoa);
+  font: inherit;
+  cursor: pointer;
+}
+
+.running-strip[hidden] {
+  display: none;
+}
+
+.rec-dot--time {
+  background: oklch(45% 0.13 40);
+}
+
+.running-clock {
+  flex: none;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.running-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.running-stop {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--cream);
+  color: var(--blush-deep);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.running-stop:hover {
+  background: oklch(97% 0.04 30);
+}
+
+/* ---------- running view inside the Time tab ---------- */
+
+.timer-running-view {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.timer-description {
+  padding: 8px 11px;
+  border: 1px solid var(--butter-deep);
+  border-radius: 10px;
+  background: var(--cream);
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+}
+
+.timer-description::placeholder {
+  color: var(--cocoa-soft);
+}
+
+/* ---------- manual entry ---------- */
+
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manual-toggle {
+  align-self: flex-start;
+}
+
+.manual-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-card);
+  background: var(--cream-sunk);
+}
+
+.manual-form[hidden] {
+  display: none;
+}
+
+.manual-row {
+  display: flex;
+  gap: 7px;
+}
+
+.manual-input {
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--cream-line);
+  border-radius: 9px;
+  background: var(--cream);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 550;
+}
+
+.manual-date {
+  flex: none;
+  width: 132px;
+}
+
+.manual-duration {
+  flex: 1;
+}
+
+/* Inside the form the list belongs in the flow, not floating over the panel. */
+.suggestions--inline {
+  position: static;
+  max-height: 140px;
+  box-shadow: none;
+  padding: 2px;
+}
+
+.suggestions--inline:empty {
+  display: none;
+}
+
+/* ---------- Time tab modes ---------- */
+
+.submodes {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--cream-sunk);
+}
+
+.submode {
+  flex: 1;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--cocoa-soft);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.submode[aria-selected='true'] {
+  background: var(--cream);
+  color: var(--cocoa);
+  box-shadow: 0 1px 3px oklch(30% 0.04 62 / 0.12);
+}
+
+.manual-form[hidden],
+.timer[hidden] {
+  display: none;
+}
+
+.quick-dates {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.chip--date {
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+}
+
+.chip--date[aria-pressed='true'] {
+  background: var(--butter);
+  border-color: var(--butter-deep);
+  color: var(--cocoa);
+}
+
+.manual-date {
+  width: 100%;
+}
+
+.timer-detail {
+  padding: 8px 11px;
+  border: 1px solid var(--butter-deep);
+  border-radius: 10px;
+  background: var(--cream);
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+}
+
+.timer-detail[hidden] {
+  display: none;
+}
+
+.timer-detail::placeholder {
+  color: var(--cocoa-soft);
+}
+
+/* Deliberately quiet: it exists for testing, not for daily use. */
+.chip--nudge {
+  flex: none;
+  padding: 4px 9px;
+  border-color: oklch(78% 0.09 90);
+  background: oklch(97% 0.03 92 / 0.7);
+  color: oklch(42% 0.06 66);
+  font-size: var(--text-xs);
+}
+
+.chip--nudge:hover {
+  background: var(--cream);
+  color: var(--cocoa);
+}

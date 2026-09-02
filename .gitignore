@@ -1,0 +1,7 @@
+node_modules/
+build/
+release/
+
+# The optimised model is generated from character.source.glb by `npm run optimise-model`.
+# Keeping both would double the repository size for no benefit.
+assets/character.glb
