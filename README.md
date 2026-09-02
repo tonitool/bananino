@@ -41,7 +41,7 @@ npm start
 ## Build a real app
 
 ```bash
-npm run optimise-model   # first time only: generates assets/character.glb from the source model
+npm run optimise-model   # first time only: generates the characters from their source models
 npm run dist
 ```
 
@@ -76,9 +76,10 @@ breaks. They are listed in the menu bar icon's menu too.
 
 ## The panel
 
-One view at a time — **Time · Note · Clips · Meet** — because a single screen holding all
-of them left every part too small, and overlapping whenever one grew. A running timer is
-the one thing shown on every view, as a slim strip you can click to jump back to Time.
+One view at a time — **Time · Note · Clips · Meet · Cal · ⚙** — because a single screen
+holding all of them left every part too small, and overlapping whenever one grew. A running
+timer is the one thing shown on every view, as a slim strip you can click to jump back to
+Time.
 
 **Time** is the timer and its MOCO status. Recent tasks are one-tap chips; typing at least
 two letters searches your MOCO projects. While a timer runs there is a **description**
@@ -114,12 +115,29 @@ Two of those only apply in **Always visible** mode. Dragging is pointless while 
 (the corner is its home, so it returns there), and the idle fidget never gets a chance
 because the character hides about a second after your cursor leaves.
 
+## Who lives in your corner
+
+The **⚙** tab in the panel picks the character: **Bananino** or the **Cat**. The menu bar
+icon (and right-click on the character) has the same list under **Character**. The choice
+is remembered, and the app boots straight into it — the model is handed to the window at
+launch, so a restart never flashes the character you left behind.
+
+Switching swaps the mesh inside the existing rig, which is why nothing else has to move:
+the pose, the costume, the radio and the clock all belong to the rig rather than to the
+body. Everything measured off the body — where a hat sits, how far out the props stand —
+is re-measured against the new one, so a cat does not wear a banana's hat. The model is a
+few megabytes, so the card you pressed shows a spinner until it is on stage.
+
+Adding another character is [three lines in
+characters.js](src/renderer/scene/characters.js), one entry in `CHARACTER_MENU` in
+[constants.js](src/main/constants.js), and a `.source.glb` in `assets/characters/`.
+
 ## Dress up
 
-The menu bar icon (and right-click on the character) has **Costume** — party hat, Santa
-hat, headphones, shades, crown, beanie — and **Dance**: bounce, sway, twist, shimmy,
-headbang, spin. It lives in the menu rather than the panel so the panel stays about work.
-The costume is remembered between launches; dancing stops when you quit.
+The **⚙** tab, the menu bar icon and right-click on the character all have **Costume** —
+party hat, Santa hat, headphones, shades, crown, beanie — and **Dance**: bounce, sway,
+twist, shimmy, headbang, spin. The costume is remembered between launches; dancing stops
+when you quit.
 
 The model is a single static mesh with no skeleton, so there is nothing to rig clothing
 onto — every costume is built from primitives (cones, tori, cylinders) at runtime. Because
@@ -264,13 +282,23 @@ Reaction names live in [reactions.js](src/renderer/animation/reactions.js): `hop
 
 ## Swapping in your own model
 
-Drop a `.glb` at `assets/character.glb` and run `npm run build`. It is normalised to one
-unit tall and stood on the floor automatically. If it does not face the camera:
+Drop a `.glb` at `assets/characters/<id>.source.glb`, add `<id>` to `CHARACTERS` in
+[characters.js](src/renderer/scene/characters.js) and to `CHARACTER_MENU` in
+[constants.js](src/main/constants.js), then:
+
+```bash
+npm run optimise-model <id>   # ~950k triangles down to ~76k, 28MB down to ~3MB
+npm run build
+```
+
+The model is normalised to one unit tall and stood on the floor automatically. If it does
+not face the camera, try a yaw against whoever is on stage:
 
 ```bash
 BANANINO_YAW=1.5707963 npm start
 ```
 
-Once you know the value, set `DEFAULT_YAW` in
-[loadCharacter.js](src/renderer/scene/loadCharacter.js), then regenerate the app icon from
-the model itself with `npm run icon`.
+Once you know the value, set `yaw` on the character in
+[characters.js](src/renderer/scene/characters.js). Its `eyeRatio` is the other measurement
+worth getting right — how far up the model its face is painted, which is where glasses and
+headphones hang. Then regenerate the app icon from the model itself with `npm run icon`.

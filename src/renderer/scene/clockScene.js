@@ -84,8 +84,10 @@ export const loadClockScene = async ({ anchors }) => {
 
   const root = new Group()
   root.add(clock)
-  // On the floor to the character's right — the radio owns the left.
-  root.position.set(anchors.sideX * 2.15, 0, anchors.frontZ * 0.55)
+  // On the floor to the character's right — the radio owns the left. Re-run on a
+  // character swap, since the measurements it stands beside change with the character.
+  const place = ({ sideX, frontZ }) => root.position.set(sideX * 2.15, 0, frontZ * 0.55)
+  place(anchors)
   root.rotation.y = -0.3
 
   const materials = [cocoa, cream, brass, red]
@@ -121,5 +123,5 @@ export const loadClockScene = async ({ anchors }) => {
     for (const material of materials) material.dispose()
   }
 
-  return { root, update, dispose }
+  return { root, update, dispose, place }
 }

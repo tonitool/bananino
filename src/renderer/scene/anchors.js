@@ -5,11 +5,18 @@ const DOWN = new Vector3(0, -1, 0)
 /** Rays start outside the model and travel inwards to find its surface. */
 const OUTSIDE = 4
 
+/** Where the face is painted, as a fraction of height, if the character does not say. */
+const DEFAULT_EYE_RATIO = 0.62
+
 /**
  * Measures where a hat, glasses or headphones should sit by probing the mesh itself,
- * rather than hard-coding numbers that only suit one model.
+ * rather than hard-coding numbers that only suit one model. Re-measured on every
+ * character swap, so a cat's head gets the hat a banana's would not fit.
+ *
+ * `eyeRatio` is the one thing the mesh cannot tell us — the eyes are painted on, not
+ * modelled — so each character declares its own in characters.js.
  */
-export const measureAnchors = (model) => {
+export const measureAnchors = (model, { eyeRatio = DEFAULT_EYE_RATIO } = {}) => {
   const raycaster = new Raycaster()
   const bounds = new Box3().setFromObject(model)
   const size = bounds.getSize(new Vector3())
@@ -22,12 +29,13 @@ export const measureAnchors = (model) => {
 
   const sideX = measureSide({ hit, centre, bounds, size })
   const profile = measureHeadProfile({ model, centre, sideX })
+  const eyeY = bounds.min.y + size.y * eyeRatio
 
   return {
     height: size.y,
     /** Eye line, as a proportion of height — where the face is painted on this model. */
-    eyeY: bounds.min.y + size.y * EYE_HEIGHT_RATIO,
-    frontZ: measureFront({ hit, centre, bounds, size }),
+    eyeY,
+    frontZ: measureFront({ hit, centre, eyeY, bounds }),
     sideX,
     /**
      * The height at which the head is `radius` wide — where a band of that radius would
@@ -107,13 +115,10 @@ const ringHeight = (profile, radius) => {
   return profile[profile.length - 1].y
 }
 
-/** Taken from where the face is painted on the supplied model's texture. */
-const EYE_HEIGHT_RATIO = 0.62
-
-const measureFront = ({ hit, centre, bounds, size }) => {
-  const y = bounds.min.y + size.y * EYE_HEIGHT_RATIO
+/** The surface at eye level: where a pair of shades would rest against the face. */
+const measureFront = ({ hit, centre, eyeY, bounds }) => {
   const point = hit(
-    new Vector3(centre.x, y, bounds.max.z + OUTSIDE),
+    new Vector3(centre.x, eyeY, bounds.max.z + OUTSIDE),
     new Vector3(0, 0, -1),
   )
   return point ? point.z : bounds.max.z

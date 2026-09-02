@@ -175,13 +175,21 @@ export const maybeProbe = (win, argv) => {
   })
 }
 
-/** `--costume=<name>` and `--dance=<name>` set the dress-up state for a screenshot. */
+/**
+ * `--character=<id>`, `--costume=<name>` and `--dance=<name>` set who is on stage and
+ * what they are wearing, for a screenshot.
+ *
+ * The character is given longer than the rest: it is a whole model to fetch and measure,
+ * and a capture taken mid-swap catches an empty stage.
+ */
 export const maybeDressUp = (win, argv, actions) => {
+  const character = argv.find((arg) => arg.startsWith('--character='))
   const costume = argv.find((arg) => arg.startsWith('--costume='))
   const dance = argv.find((arg) => arg.startsWith('--dance='))
-  if (!costume && !dance) return
+  if (!character && !costume && !dance) return
 
   win.webContents.once('did-finish-load', () => {
+    if (character) actions.setCharacter(character.split('=')[1])
     setTimeout(() => {
       if (costume) actions.setCostume(costume.split('=')[1])
       if (dance) actions.setDance(dance.split('=')[1])

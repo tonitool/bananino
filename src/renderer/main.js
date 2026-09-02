@@ -2,8 +2,8 @@ import './ui/styles/index.css'
 import { createRenderer, resizeRenderer } from './scene/createRenderer.js'
 import { createScene } from './scene/createScene.js'
 import { addLighting } from './scene/lighting.js'
-import { loadCharacter } from './scene/loadCharacter.js'
-import { measureAnchors } from './scene/anchors.js'
+import { createCharacter } from './scene/characterRig.js'
+import { characterId } from './scene/characters.js'
 import { createCostumeRack } from './scene/costumes.js'
 import { randomDance } from './animation/dances.js'
 import { createAlphaHitTester } from './interaction/alphaHitTest.js'
@@ -71,13 +71,25 @@ async function boot() {
   const { scene, camera } = createScene()
   addLighting(scene, renderer)
 
-  const character = await loadCharacter(renderer)
+  const character = createCharacter(renderer)
   scene.add(character.root)
 
-  // Measured from the mesh, so a swapped-in model still gets its hat on its head.
-  const anchors = measureAnchors(character.model)
-  console.log('[anchors]', JSON.stringify(anchors))
+  /*
+   * Which character to boot as arrives in the URL from the main process, so the saved
+   * choice is on stage from the first frame instead of a banana that turns into a cat a
+   * few seconds later.
+   */
+  let anchors = await character.load(
+    characterId(new URLSearchParams(location.search).get('character')),
+  )
+  console.log('[anchors]', character.current(), JSON.stringify(anchors))
   const costumeRack = createCostumeRack({ slot: character.costumeSlot, anchors })
+
+  /**
+   * The character asked for, which is only the one on stage between swaps. Declared here
+   * so the panel can be painted with it from the moment there is a character at all.
+   */
+  let wanted = character.current()
 
   const bubble = createSpeechBubble(elements.bubble)
   const shadow = createShadow(elements.shadow)
@@ -93,12 +105,19 @@ async function boot() {
 
   let lastSnapshot = null
 
-  /** Costume and dance live outside the snapshot, so the panel is painted from both. */
+  /**
+   * Costume, dance and who is on stage live outside the snapshot, so the panel is painted
+   * from both. The character is the renderer's, not the setting's: the setting is written
+   * the instant a card is pressed and the model lands seconds later, so the panel is told
+   * both — who is here, and who is on the way.
+   */
   const paintPanel = () => {
     if (!lastSnapshot) return
     panel.update({
       ...lastSnapshot,
       costume: costumeRack.current(),
+      character: character.current(),
+      wantedCharacter: wanted,
       dance: state.dance?.name ?? null,
     })
   }
@@ -134,6 +153,12 @@ async function boot() {
         paintPanel()
       },
       toggleDance,
+      setCharacter: (id) => {
+        // Persisted first, swapped as the model arrives: the store is what the next
+        // launch reads, and the load is far too slow to hold the click on.
+        bridge.setCharacter(id)
+        void swapCharacter(id)
+      },
       mocoConnect: (payload) => bridge.mocoConnect(payload),
       mocoDisconnect: () => bridge.mocoDisconnect(),
       mocoPush: () => bridge.mocoPush(),
@@ -179,6 +204,46 @@ async function boot() {
   let isPlaying = false
   let clockPresence = 0
   let meetingSoon = false
+
+  /**
+   * Swaps who is on stage. The rig, the pose and the props are all kept — only the mesh
+   * changes — but every measured placement is re-taken against the new body: a hat fitted
+   * to a banana would hang beside a cat's head, and the radio would stand inside it.
+   *
+   * Comparing against the character *asked for* rather than the one that arrived is what
+   * makes the main process's echo of a swap the panel started a no-op — and what keeps a
+   * second press from starting the same load twice while the first is still in flight.
+   */
+  const swapCharacter = async (id) => {
+    const requested = characterId(id)
+    if (requested === wanted) return
+    wanted = requested
+    // Painted before the await: this is what puts the spinner on the card that was
+    // pressed, and it is the only feedback until the mesh arrives.
+    paintPanel()
+
+    let measured
+    try {
+      measured = await character.load(requested)
+    } catch (error) {
+      console.error(`[character] could not load "${requested}":`, error)
+      bubble.say('i could not find that body 😵', { tone: 'sad' })
+      wanted = character.current()
+      paintPanel()
+      return
+    }
+    // Null means a later swap got there first, and owns the rig and the anchors now.
+    if (!measured) return
+
+    anchors = measured
+    console.log('[anchors]', character.current(), JSON.stringify(anchors))
+    costumeRack.refit(anchors)
+    musicScene?.place(anchors)
+    clockScene?.place(anchors)
+    // A hop on arrival: the new body says hello, and it covers the frame it appears on.
+    state = withReaction(state, 'hop')
+    paintPanel()
+  }
 
 
   const setInteractive = (value) => {
@@ -304,6 +369,10 @@ async function boot() {
       case 'costume':
         costumeRack.wear(command.name)
         return paintPanel()
+      case 'character':
+        // Sent by the menu bar, and echoed back for a swap the panel started — which
+        // swapCharacter drops, since that character is the one already asked for.
+        return void swapCharacter(command.id)
       case 'dance':
         state = withDance(state, command.name ?? null)
         return paintPanel()

@@ -57,8 +57,10 @@ export const loadMusicScene = async ({ anchors }) => {
   ])
 
   const root = new Group()
-  // On the floor to the character's left, turned slightly towards it.
-  root.position.set(-anchors.sideX * 2.4, 0, anchors.frontZ * 0.5)
+  // On the floor to the character's left, turned slightly towards it. Re-run on a
+  // character swap: a cat is a different width, and the radio would end up inside it.
+  const place = ({ sideX, frontZ }) => root.position.set(-sideX * 2.4, 0, frontZ * 0.5)
+  place(anchors)
   root.rotation.y = 0.35
   root.add(radio.object)
 
@@ -111,5 +113,5 @@ export const loadMusicScene = async ({ anchors }) => {
     for (const material of materials) material.dispose()
   }
 
-  return { root, update, dispose }
+  return { root, update, dispose, place }
 }

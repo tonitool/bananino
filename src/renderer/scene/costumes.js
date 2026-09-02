@@ -192,6 +192,7 @@ const disposeGroup = (group) => {
 export const createCostumeRack = ({ slot, anchors }) => {
   let current = null
   let currentName = 'none'
+  let fitting = anchors
 
   const wear = (name) => {
     const costume = COSTUMES[isCostumeName(name) ? name : 'none']
@@ -205,10 +206,20 @@ export const createCostumeRack = ({ slot, anchors }) => {
     currentName = isCostumeName(name) ? name : 'none'
     if (!costume.build) return currentName
 
-    current = costume.build(anchors)
+    current = costume.build(fitting)
     slot.add(current)
     return currentName
   }
 
-  return { wear, current: () => currentName }
+  /**
+   * A different character is a different head: everything here is built against measured
+   * anchors, so what is worn is rebuilt to the new ones rather than left hanging in the
+   * air where the last character's head used to be.
+   */
+  const refit = (next) => {
+    fitting = next
+    wear(currentName)
+  }
+
+  return { wear, refit, current: () => currentName }
 }

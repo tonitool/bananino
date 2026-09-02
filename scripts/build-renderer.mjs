@@ -2,6 +2,7 @@ import { context, build } from 'esbuild'
 import { copyFileSync, mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { characterIds } from '../src/renderer/scene/characters.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT_DIR = join(ROOT, 'build')
@@ -9,7 +10,11 @@ const WATCH = process.argv.includes('--watch')
 
 const STATIC_FILES = [
   [join(ROOT, 'src', 'renderer', 'index.html'), join(OUT_DIR, 'index.html')],
-  [join(ROOT, 'assets', 'character.glb'), join(OUT_DIR, 'character.glb')],
+  /* One optimised model per character, loaded by id at runtime — see characters.js. */
+  ...characterIds().map((id) => [
+    join(ROOT, 'assets', 'characters', `${id}.glb`),
+    join(OUT_DIR, 'characters', `${id}.glb`),
+  ]),
   /*
    * Copied out as .mesh, not .obj: electron-builder excludes *.obj by default (it is a
    * C object-file extension), which silently shipped an app with no radio prop while the
@@ -28,14 +33,21 @@ const STATIC_FILES = [
   ]),
 ]
 
-/** The model is ~28 MB; re-copying it on every rebuild is pure waste. */
+/** The models are megabytes each; re-copying them on every rebuild is pure waste. */
 const copyIfStale = (from, to) => {
   try {
     if (statSync(to).mtimeMs >= statSync(from).mtimeMs) return
   } catch (error) {
     if (error.code !== 'ENOENT') throw error
   }
-  copyFileSync(from, to)
+  try {
+    copyFileSync(from, to)
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+    // The optimised models are generated, not committed, so this is the first thing a
+    // fresh clone hits — and "ENOENT" alone does not say what to run.
+    throw new Error(`${from} is missing. Run \`npm run optimise-model\` to generate it.`)
+  }
 }
 
 const options = {
@@ -53,6 +65,7 @@ const options = {
 
 mkdirSync(OUT_DIR, { recursive: true })
 mkdirSync(join(OUT_DIR, 'radio'), { recursive: true })
+mkdirSync(join(OUT_DIR, 'characters'), { recursive: true })
 for (const [from, to] of STATIC_FILES) copyIfStale(from, to)
 
 if (WATCH) {
