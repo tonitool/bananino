@@ -1,0 +1,67 @@
+name: Release
+
+# Building the app needs macOS: the capture helper is Swift compiled by swiftc, the app
+# bundle is signed ad-hoc by codesign, and the DMG is made by hdiutil. So a release is cut
+# by pushing a tag and letting a macOS runner do it, rather than from whichever machine
+# happens to be to hand.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    # arm64, matching the only target the app builds for.
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # electron-builder publishes to the release for the version in package.json, not to
+      # the tag it was triggered by. If those disagree, the tag says one thing and the
+      # download says another — so stop here rather than shipping that.
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p 'require("./package.json").version')"
+          if [ "$tag" != "$version" ]; then
+            echo "tag v$tag does not match package.json $version"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm test
+
+      # The optimised models are generated, not committed — see .gitignore.
+      - name: Generate the character models
+        run: npm run optimise-model
+
+      - name: Build, package and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release
+
+      # electron-builder drops some extensions by default, which once shipped an app with
+      # a missing prop while the dev build looked perfect. The characters go the same way.
+      - name: Check every build asset reached the app bundle
+        run: npm run verify:assets
+
+      # Kept for a tag that fails to publish, and for workflow_dispatch runs.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bananino-mac-arm64
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: warn

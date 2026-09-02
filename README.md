@@ -51,6 +51,24 @@ Produces `release/mac-arm64/Bananino.app`. Drag it to `/Applications`, then add 
 It is unsigned, so the first launch needs a right-click → **Open** (or
 `xattr -dr com.apple.quarantine /Applications/Bananino.app`).
 
+## Cutting a release
+
+Releases are built on a macOS runner, because the build needs `swiftc`, `codesign` and
+`hdiutil` — so it does not depend on which machine is to hand:
+
+```bash
+npm version 1.2.0 -m 'Release %s'   # or edit package.json and commit
+git push origin main --follow-tags
+```
+
+Pushing a `v*` tag runs [.github/workflows/release.yml](.github/workflows/release.yml),
+which tests, generates the models, packages, and publishes the DMG and ZIP to the GitHub
+release for that version. The tag has to match `package.json`, or the run stops before
+publishing anything — electron-builder publishes to the version, not the tag, and the two
+disagreeing means the download does not say what the tag says.
+
+`npm run release` does the same thing locally, on a Mac.
+
 ## Waking it up
 
 By default the buddy is hidden. It appears when your cursor rests in the **bottom-right
