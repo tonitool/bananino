@@ -36,6 +36,7 @@
   "build": {
     "appId": "de.clueone.bananino",
     "productName": "Bananino",
+    "afterPack": "scripts/afterPack.mjs",
     "directories": {
       "buildResources": "resources",
       "output": "release"
