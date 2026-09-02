@@ -151,6 +151,8 @@ export const createPanel = ({ actions }) => {
       focusTab('meet')
     },
     onRefresh: () => actions.calendarRefresh(),
+    onBookingSet: (url) => actions.bookingSet(url),
+    onBookingCopy: () => actions.bookingCopy(),
   })
 
   const panels = { time, note, clips, meet, calendar }

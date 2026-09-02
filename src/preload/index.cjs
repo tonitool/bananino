@@ -49,6 +49,8 @@ const IPC = {
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
+  bookingSet: 'calendar:booking-set',
+  bookingCopy: 'calendar:booking-copy',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -106,6 +108,8 @@ contextBridge.exposeInMainWorld('pet', {
   calendarDisconnect: () => ipcRenderer.send(IPC.calendarDisconnect),
   calendarJoin: send(IPC.calendarJoin),
   calendarRefresh: () => ipcRenderer.send(IPC.calendarRefresh),
+  bookingSet: send(IPC.bookingSet),
+  bookingCopy: () => ipcRenderer.send(IPC.bookingCopy),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),

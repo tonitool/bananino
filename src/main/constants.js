@@ -73,6 +73,13 @@ export const BLUR_GRACE_MS = 450
 /** Focus must have settled for this long before losing it counts as "clicked away". */
 export const FOCUS_SETTLE_MS = 260
 
+/**
+ * On close the panel fades/melts first and the window only shrinks once it is gone.
+ * Shrinking earlier makes the character ride up with the collapsing area — it looks
+ * like the buddy floats away instead of the panel leaving.
+ */
+export const PANEL_CLOSE_FADE_MS = 240
+
 /** Distance from the screen edge when the character is out and resting. */
 export const SCREEN_MARGIN = 22
 
@@ -180,6 +187,8 @@ export const IPC = Object.freeze({
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
   calendarRefresh: 'calendar:refresh',
+  bookingSet: 'calendar:booking-set',
+  bookingCopy: 'calendar:booking-copy',
 })
 
 /*

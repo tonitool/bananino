@@ -88,6 +88,8 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.calendarDisconnect]: () => actions.calendarDisconnect(),
     [IPC.calendarRefresh]: () => actions.calendarRefresh(),
     [IPC.calendarJoin]: (_e, payload) => actions.calendarJoin(asString(payload?.url)),
+    [IPC.bookingSet]: (_e, payload) => actions.bookingSet(asString(payload?.url)),
+    [IPC.bookingCopy]: () => actions.bookingCopy(),
 
   }
 

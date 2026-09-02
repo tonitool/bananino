@@ -45,6 +45,11 @@ const sanitize = (raw) => ({
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,
+  // The "Book with me" page is meant to be shared, so it is intentionally not a secret.
+  bookingUrl:
+    typeof raw?.bookingUrl === 'string' && raw.bookingUrl.startsWith('https://')
+      ? raw.bookingUrl
+      : '',
   // Off by default: rounding up bills more time than was worked.
   mocoRoundTo: [0, 5, 15].includes(raw?.mocoRoundTo) ? raw.mocoRoundTo : 0,
   taskBindings: sanitizeBindings(raw?.taskBindings),

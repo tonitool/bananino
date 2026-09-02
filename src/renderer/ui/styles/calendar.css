@@ -151,6 +151,24 @@
   display: none;
 }
 
+.cal-booking {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 9px;
+  border-top: 1px solid var(--cream-line);
+}
+
+.cal-booking .row .timer-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cal-booking .button {
+  flex: none;
+}
+
 .spacer {
   flex: 1;
 }

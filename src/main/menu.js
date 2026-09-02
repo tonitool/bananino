@@ -138,6 +138,11 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
       { type: 'separator' },
       { label: 'Refresh now', enabled: settings.calendarFeed, click: actions.calendarRefresh },
       {
+        label: 'Copy booking link',
+        enabled: Boolean(settings.bookingUrl),
+        click: actions.bookingCopy,
+      },
+      {
         label: 'Disconnect',
         enabled: settings.calendarFeed,
         click: actions.calendarDisconnect,

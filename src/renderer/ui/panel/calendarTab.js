@@ -17,7 +17,15 @@ const describeWhen = (event, now) => {
  * needs write access, which means OAuth — that path returns when it exists; until then,
  * create meetings in Outlook and they show up here.
  */
-export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, onRefresh }) => {
+export const createCalendarTab = ({
+  onConnect,
+  onDisconnect,
+  onJoin,
+  onRecord,
+  onRefresh,
+  onBookingSet,
+  onBookingCopy,
+}) => {
   const feedUrl = el('input', {
     class: 'timer-input',
     type: 'password',
@@ -41,7 +49,7 @@ export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, o
   const connectView = el('div', { class: 'cal-connect' }, [
     el('p', {
       class: 'hint',
-      text: 'Outlook → Settings → Calendar → Shared calendars → “Publish a calendar”, full details, ICS — paste the link here. It is stored in your Keychain; anyone holding it can read that calendar.',
+      text: 'Outlook → Settings → Shared calendars → Publish (full details, ICS), paste the link here. Stored in your Keychain; anyone holding it can read the calendar.',
     }),
     feedUrl,
     connectButton,
@@ -59,10 +67,6 @@ export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, o
     ]),
     list,
     noneHint,
-    el('p', {
-      class: 'hint',
-      text: 'Read-only: the buddy watches this calendar. It can lag new edits by a few minutes — that is the feed, not the app.',
-    }),
   ])
 
   const unlinkButton = el('button', {
@@ -72,12 +76,38 @@ export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, o
     onclick: onDisconnect,
   })
 
+  const bookingInput = el('input', {
+    class: 'timer-input',
+    type: 'url',
+    placeholder: 'Book-with-me link (optional)',
+    'aria-label': 'Booking link',
+    autocomplete: 'off',
+  })
+  const bookingSave = el('button', {
+    class: 'button--small button',
+    type: 'button',
+    text: 'Save',
+    onclick: () => onBookingSet(bookingInput.value.trim()),
+  })
+  const bookingCopyButton = el('button', {
+    class: 'button--small button',
+    type: 'button',
+    text: 'Copy booking link',
+    onclick: onBookingCopy,
+  })
+
+  const bookingRow = el('div', { class: 'cal-booking' }, [
+    el('div', { class: 'row' }, [bookingInput, bookingSave]),
+    bookingCopyButton,
+  ])
+
   // The error lives outside both views so failures are visible connected or not.
   const root = el('section', { class: 'tab-panel', id: 'tab-calendar', role: 'tabpanel' }, [
     connectView,
     linkedView,
     error,
     unlinkButton,
+    bookingRow,
   ])
 
   let isConnected = false
@@ -127,6 +157,14 @@ export const createCalendarTab = ({ onConnect, onDisconnect, onJoin, onRecord, o
 
     error.textContent = calendar.lastError ?? ''
     setHidden(error, !calendar.lastError)
+
+    const savedBooking = snapshot.settings?.bookingUrl ?? ''
+    // Don't stomp the field while someone is typing into it.
+    if (savedBooking !== bookingInput.dataset.saved) {
+      bookingInput.dataset.saved = savedBooking
+      if (document.activeElement !== bookingInput) bookingInput.value = savedBooking
+    }
+    setHidden(bookingCopyButton, !savedBooking)
   }
 
   return {

@@ -17,20 +17,16 @@
   overflow: hidden;
 
   opacity: 0;
-  scale: 0.94;
-  translate: 0 10px;
   pointer-events: none;
   transition:
     opacity var(--duration-fast) ease-out,
-    scale var(--duration-normal) var(--ease-spring),
-    translate var(--duration-normal) var(--ease-spring);
+    clip-path var(--duration-normal) ease-in;
 }
 
 #stage[data-panel='open'] .panel {
   opacity: 1;
-  scale: 1;
-  translate: 0 0;
   pointer-events: auto;
+  clip-path: inset(0 0 0 0 round var(--radius-panel));
 }
 
 /*
@@ -46,18 +42,30 @@
   left: 0;
 }
 
+/*
+ * Closed, the panel melts into the character standing at its edge — top-down when it
+ * hangs above the buddy, bottom-up when it sits below. The window holds its size while
+ * the melt plays and shrinks only afterwards (PANEL_CLOSE_FADE_MS in perch.js), so the
+ * character never rides up with a collapsing panel.
+ */
 #stage[data-place='above'] .panel {
   top: 0;
   z-index: 2;
   padding-bottom: calc(var(--panel-overlap) + 10px);
-  transform-origin: 50% 100%;
 }
 
 #stage[data-place='below'] .panel {
   bottom: 0;
   z-index: 3;
   padding-top: calc(var(--panel-overlap) + 10px);
-  transform-origin: 50% 0;
+}
+
+#stage[data-panel='closed'][data-place='above'] .panel {
+  clip-path: inset(100% 0 0 0 round var(--radius-panel));
+}
+
+#stage[data-panel='closed'][data-place='below'] .panel {
+  clip-path: inset(0 0 100% 0 round var(--radius-panel));
 }
 
 /* A soft highlight along the top edge keeps the panel from reading as flat paper. */

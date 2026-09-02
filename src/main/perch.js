@@ -9,6 +9,7 @@ import {
   IPC,
   MIN_PANEL_HEIGHT,
   PANEL,
+  PANEL_CLOSE_FADE_MS,
   SCREEN_MARGIN,
   WINDOW_SIZES,
 } from './constants.js'
@@ -42,6 +43,7 @@ export const createPerch = ({
   let openedAt = 0
   let focusedAt = 0
   let hideTimer = null
+  let closeBoundsTimer = null
   let measuredHeight = PANEL.height
 
   const workArea = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
@@ -141,16 +143,26 @@ export const createPerch = ({
     if (next) focusedAt = 0
     // Asserted here rather than left to the renderer: the panel is only useful clickable.
     interaction?.setInteractive(next)
-    applyBounds({ animate: true })
 
-    // The panel has text fields, so the window has to be able to take keyboard focus.
     if (next) {
+      clearTimeout(closeBoundsTimer)
+      closeBoundsTimer = null
+      applyBounds({ animate: true })
+      // The panel has text fields, so the window has to be able to take keyboard focus.
       if (!win.isVisible()) win.showInactive()
       // An accessory app has to claim activation explicitly before a field can take keys.
       app.focus({ steal: true })
       win.focus()
     } else {
+      // The renderer melts the panel into the character first; the window only shrinks
+      // after the fade, so the character itself never moves on close.
+      notify()
+      closeBoundsTimer = setTimeout(() => {
+        closeBoundsTimer = null
+        if (!isPanelOpen) applyBounds({ animate: true })
+      }, PANEL_CLOSE_FADE_MS)
       win.blur()
+      return
     }
     notify()
   }
