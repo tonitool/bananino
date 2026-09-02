@@ -11,13 +11,17 @@ and **clipboard history**. Everything is stored as plain files on your own disk.
 1. Download `Bananino-*-arm64.dmg` from
    [**Releases**](https://github.com/tonitool/bananino/releases).
 2. Open the DMG and drag **Bananino** into **Applications**.
-3. The app is unsigned, and macOS shows its usual misleading message for that —
-   **"Bananino is damaged and can't be opened."** It is not damaged; remove the
-   download quarantine flag once in Terminal, then launch it normally:
+3. The app is unsigned, so macOS blocks the first launch. Clear the browser's
+   quarantine flag once in Terminal, then it launches normally for good:
 
    ```bash
    xattr -dr com.apple.quarantine /Applications/Bananino.app
    ```
+
+   If you already double-clicked and got **"damaged"** or **"Apple could not
+   verify…malware"**, press **Done** (never Move to Bin), then either run the
+   command above or go to **System Settings → Privacy & Security**, scroll to
+   the Security section, and click **Open Anyway** next to Bananino.
 4. Optional: add it under **System Settings → General → Login Items** so it
    starts with your Mac.
 
