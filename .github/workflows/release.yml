@@ -4,6 +4,10 @@ name: Release
 # bundle is signed ad-hoc by codesign, and the DMG is made by hdiutil. So a release is cut
 # by pushing a tag and letting a macOS runner do it, rather than from whichever machine
 # happens to be to hand.
+#
+# Only a tag push releases. workflow_dispatch builds and leaves the app as a run artifact:
+# a branch run has no tag, so there is nothing to release against, and asking anyway is
+# how the first run reported failure after a perfectly good build.
 on:
   push:
     tags: ['v*']
@@ -46,7 +50,19 @@ jobs:
       - name: Generate the character models
         run: npm run optimise-model
 
-      - name: Build, package and publish
+      # No tag, no release: this leaves the app in the run's artifact and touches nothing
+      # public, so a dispatch run can be used to check a build without littering drafts.
+      - name: Build and package
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npm run dist
+
+      # Uploads into a *draft* release — see build.publish in package.json. Publishing
+      # straight to a live release is what broke 1.1.0: electron-builder runs one publisher
+      # per artifact, they each try to create the release, and once one has, the rest get
+      # back "422 Published releases must have a valid tag" from GitHub. The winner had
+      # uploaded a single blockmap by then, so the release went out with no app in it.
+      - name: Build, package and upload to the draft release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
@@ -55,6 +71,27 @@ jobs:
       # a missing prop while the dev build looked perfect. The characters go the same way.
       - name: Check every build asset reached the app bundle
         run: npm run verify:assets
+
+      # The check that would have caught 1.1.0: a release nobody can download from is
+      # worse than no release, and an empty one looks exactly like a good one from here.
+      - name: Check the draft actually carries the app
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          names="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+          echo "$names"
+          for want in '\.dmg$' '\.zip$' '^latest-mac\.yml$'; do
+            echo "$names" | grep -qE "$want" || { echo "the draft has no $want asset"; exit 1; }
+          done
+
+      # Published last, and only once the build is known to be complete, so a failed run
+      # leaves a draft to inspect rather than a broken download in front of users.
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
 
       # Kept for a tag that fails to publish, and for workflow_dispatch runs.
       - uses: actions/upload-artifact@v4
