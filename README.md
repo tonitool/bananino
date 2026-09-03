@@ -155,8 +155,8 @@ characters.js](src/renderer/scene/characters.js), one entry in `CHARACTER_MENU` 
 
 **Settings…**, the menu bar icon and right-click on the character all have **Costume** —
 party hat, Santa hat, headphones, shades, crown, beanie — and **Dance**: bounce, sway,
-twist, shimmy, headbang, spin. The costume is remembered between launches; dancing stops
-when you quit.
+twist, shimmy, headbang, spin, samba. The costume is remembered between launches; dancing
+stops when you quit.
 
 The model is a single static mesh with no skeleton, so there is nothing to rig clothing
 onto — every costume is built from primitives (cones, tori, cylinders) at runtime. Because
@@ -167,6 +167,37 @@ Nothing is positioned by hard-coded numbers. The mesh is probed with raycasts at
 build a profile of the head, and each accessory seats itself at the height where the head
 is as wide as the accessory is. A hat placed at one fixed height either floats above a
 dome or sinks into it — and a swapped-in model would put its hat somewhere absurd.
+
+## The samba
+
+Six of the seven dances are formulas — a few sines at different frequencies, in
+[dances.js](src/renderer/animation/dances.js). The **samba** is not: it is a real
+motion-captured performance, baked down to something a body with no skeleton can play.
+
+A character here is a single static mesh, and the whole per-frame animation surface is
+position and rotation on the body plus a scale on the pivot. A 34-joint Mixamo clip cannot
+be played on that. But the part of it that reads at a few hundred pixels can:
+[bake-dance.mjs](scripts/bake-dance.mjs) samples the clip's hips and spine into the five
+numbers a dance may write — sway, bob, lean, tilt, twist — and writes them out as a table
+at 15 fps, which costs about 3% error against the ~35 fps source and 13 KB in the bundle.
+
+```bash
+npm run bake-dance   # assets/dances/samba.source.glb -> src/renderer/animation/curves/samba.js
+```
+
+It prints its own error against the source, which is the only thing that says whether the
+baked dance is still the dance that was recorded.
+
+Three things do not survive, and the script says so too: every limb, because there is
+nothing to attach one to; fore/aft travel, because the rig pins z to 0; and the hips' yaw,
+which in this clip turns the dancer right round as staging. The twist that reads as
+*dancing* is the spine's yaw relative to the hips, so that is what is baked. Filtering the
+hips' yaw was tried and measured first — it does not work, because the turns are fast
+rather than a slow drift, and a one-second high-pass still leaves 330° of them.
+
+Amplitudes are applied at playback, not baked in, because the raw performance is two to
+three times bigger than anything else in the app: it travels half a body height and would
+walk the banana out of its own canvas.
 
 ## MOCO time sync
 
@@ -321,3 +352,12 @@ Once you know the value, set `yaw` on the character in
 [characters.js](src/renderer/scene/characters.js). Its `eyeRatio` is the other measurement
 worth getting right — how far up the model its face is painted, which is where glasses and
 headphones hang. Then regenerate the app icon from the model itself with `npm run icon`.
+
+## Credits
+
+The samba is baked from **"Stickman Samba Dancing (aka the Toothless Dance)"** by
+[adu2763](https://sketchfab.com/adu2763), used under
+[CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/) —
+[original model](https://sketchfab.com/3d-models/stickman-samba-dancing-aka-the-toothless-dance-329a2840e54e4ad59452cfcb4e53c9a8).
+No mesh or texture from it ships; the app carries a table of body motion derived from its
+animation, which is a derivative work all the same.

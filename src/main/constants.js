@@ -135,6 +135,7 @@ export const DANCE_MENU = Object.freeze([
   ['shimmy', 'Shimmy'],
   ['headbang', 'Headbang'],
   ['spin', 'Spin'],
+  ['samba', 'Samba'],
 ])
 
 /**
