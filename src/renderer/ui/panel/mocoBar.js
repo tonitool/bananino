@@ -32,6 +32,13 @@ export const createMocoBar = ({ onConnect, onDisconnect, onPush, onRefresh, onDi
 
   const row = el('div', { class: 'moco-row' }, [summary, listButton, pushButton, connectButton])
 
+  /*
+   * What MOCO actually said when a push would not go through. It used to be the summary
+   * line's tooltip, which is to say invisible — and the one thing a failed push needs to
+   * tell you is why, because "3 failed" is not something anybody can act on.
+   */
+  const pushError = el('p', { class: 'moco-error' })
+
   // --- connect form -------------------------------------------------------------
   const subdomain = el('input', {
     class: 'moco-input',
@@ -91,7 +98,7 @@ export const createMocoBar = ({ onConnect, onDisconnect, onPush, onRefresh, onDi
   // --- queued entries -----------------------------------------------------------
   const list = el('ul', { class: 'moco-queue', hidden: true, 'aria-label': 'Queued entries' })
 
-  const root = el('section', { class: 'moco' }, [row, form, list])
+  const root = el('section', { class: 'moco' }, [row, pushError, form, list])
 
   let showList = false
 
@@ -160,6 +167,8 @@ export const createMocoBar = ({ onConnect, onDisconnect, onPush, onRefresh, onDi
     }
 
     root.dataset.state = !connected ? 'off' : failed > 0 ? 'failed' : pending > 0 ? 'pending' : 'ok'
+    // `.moco-error:empty` hides itself, so clearing the text is all that closing it takes.
+    pushError.textContent = lastError ?? ''
     summary.title = lastError ?? ''
     renderQueue(moco.entries ?? [])
     if (connected) toggleForm(false)

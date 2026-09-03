@@ -286,6 +286,11 @@ export const startApp = () => {
       refresh()
     },
 
+    /**
+     * The reason a push failed is shown, not just the fact of it. It used to go to the
+     * main process's console — invisible in a packaged app — leaving "could not reach
+     * MOCO" as the only thing a user could act on, which is nothing.
+     */
     mocoPush: async () => {
       try {
         const { sent, failed } = await moco.push()
@@ -294,8 +299,16 @@ export const startApp = () => {
           failed > 0 ? `${sent} sent, ${failed} failed` : `${sent} sent to MOCO`,
           failed > 0 ? 'sad' : 'happy',
         )
+        // Whatever MOCO said about the entries that would not go; the queue keeps them.
+        if (failed > 0 && moco.status().lastError) {
+          send(IPC.command, { type: 'moco-error', message: moco.status().lastError })
+        }
       } catch (error) {
         console.error('[moco] push failed:', error.message)
+        send(IPC.command, {
+          type: 'moco-error',
+          message: `${error.message} ${error.hint ?? ''}`.trim(),
+        })
         say('could not reach MOCO', 'sad')
       }
       refresh()
