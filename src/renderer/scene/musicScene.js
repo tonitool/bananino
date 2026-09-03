@@ -1,10 +1,19 @@
 import { Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader } from 'three'
 import { loadObj } from './objModel.js'
+import { standBeside } from './frame.js'
 
 const RADIO_URL = './radio.mesh'
 const NOTE_URL = './musical-note.mesh'
 
 const RADIO_HEIGHT = 0.34
+
+/**
+ * Half the radio's width once it is standing, which decides how close to the frame's edge
+ * it may be placed. loadObj scales uniformly to RADIO_HEIGHT, so the model's own aspect
+ * (6.83 x 5.18 x 1.79) fixes the width at 0.4485, and the 0.35 turn below trades a little
+ * of its depth for a little more width.
+ */
+const RADIO_HALF_EXTENT = (0.4485 / 2) * Math.cos(0.35) + (0.1176 / 2) * Math.sin(0.35)
 const NOTE_HEIGHT = 0.11
 const NOTE_COUNT = 3
 const NOTE_RISE = 0.4
@@ -57,9 +66,18 @@ export const loadMusicScene = async ({ anchors }) => {
   ])
 
   const root = new Group()
-  // On the floor to the character's left, turned slightly towards it. Re-run on a
-  // character swap: a cat is a different width, and the radio would end up inside it.
-  const place = ({ sideX, frontZ }) => root.position.set(-sideX * 2.4, 0, frontZ * 0.5)
+  /*
+   * On the floor to the character's left, turned slightly towards it. Re-run on a
+   * character swap, since it stands relative to a body whose width changes — and clamped
+   * to the frame, because standing it a fixed multiple of that width out is what sliced
+   * the radio in half as soon as a character wider than the banana arrived.
+   */
+  const place = (anchors) =>
+    root.position.set(
+      -standBeside({ sideX: anchors.sideX, reach: 2.4, halfExtent: RADIO_HALF_EXTENT }),
+      0,
+      anchors.frontZ * 0.5,
+    )
   place(anchors)
   root.rotation.y = 0.35
   root.add(radio.object)

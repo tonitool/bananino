@@ -7,6 +7,7 @@ import {
   MeshStandardMaterial,
   TorusGeometry,
 } from 'three'
+import { standBeside } from './frame.js'
 
 /*
  * A little desk clock that turns up beside the character when a meeting is close.
@@ -18,6 +19,17 @@ import {
 const FACE_RADIUS = 0.16
 const BODY_DEPTH = 0.055
 const DESK_HEIGHT = FACE_RADIUS + 0.035
+
+/** The brass rim's tube radius, which is what makes the clock wider than its face. */
+const RIM_TUBE = 0.016
+
+/**
+ * Half the clock's width once it is standing, which decides how close to the frame's edge
+ * it may be placed. The rim sets it — the feet, at 0.55 of the radius, are well inside —
+ * and the -0.3 turn below trades a little depth for a little width.
+ */
+const CLOCK_HALF_EXTENT =
+  (FACE_RADIUS + RIM_TUBE) * Math.cos(0.3) + (BODY_DEPTH / 2 + 0.028) * Math.sin(0.3)
 
 const TAU = Math.PI * 2
 
@@ -40,7 +52,7 @@ export const loadClockScene = async ({ anchors }) => {
   const body = new Mesh(new CylinderGeometry(FACE_RADIUS, FACE_RADIUS, BODY_DEPTH, 48), cocoa)
   body.rotation.x = Math.PI / 2
 
-  const rim = new Mesh(new TorusGeometry(FACE_RADIUS, 0.016, 12, 48), brass)
+  const rim = new Mesh(new TorusGeometry(FACE_RADIUS, RIM_TUBE, 12, 48), brass)
   rim.position.z = BODY_DEPTH / 2
 
   const face = new Mesh(new CircleGeometry(FACE_RADIUS * 0.86, 40), cream)
@@ -84,9 +96,17 @@ export const loadClockScene = async ({ anchors }) => {
 
   const root = new Group()
   root.add(clock)
-  // On the floor to the character's right — the radio owns the left. Re-run on a
-  // character swap, since the measurements it stands beside change with the character.
-  const place = ({ sideX, frontZ }) => root.position.set(sideX * 2.15, 0, frontZ * 0.55)
+  /*
+   * On the floor to the character's right — the radio owns the left. Same clamp as the
+   * radio: this one had three pixels of headroom beside the cat, which the arrival
+   * overshoot then spent.
+   */
+  const place = (anchors) =>
+    root.position.set(
+      standBeside({ sideX: anchors.sideX, reach: 2.15, halfExtent: CLOCK_HALF_EXTENT }),
+      0,
+      anchors.frontZ * 0.55,
+    )
   place(anchors)
   root.rotation.y = -0.3
 
