@@ -3,8 +3,11 @@ import { createRenderer, resizeRenderer } from './scene/createRenderer.js'
 import { createScene } from './scene/createScene.js'
 import { addLighting } from './scene/lighting.js'
 import { createCharacter } from './scene/characterRig.js'
-import { characterId } from './scene/characters.js'
-import { createCostumeRack } from './scene/costumes.js'
+import { CHARACTERS, characterId } from './scene/characters.js'
+import { COSTUMES } from './scene/costumes.js'
+import { GARMENTS, loadPolo, loadShirtLogos } from './scene/garments.js'
+import { shirtLogoFiles } from './scene/shirts.js'
+import { createRack } from './scene/rack.js'
 import { randomDance } from './animation/dances.js'
 import { createAlphaHitTester } from './interaction/alphaHitTest.js'
 import { createPointerController } from './interaction/pointer.js'
@@ -83,7 +86,38 @@ async function boot() {
     characterId(new URLSearchParams(location.search).get('character')),
   )
   console.log('[anchors]', character.current(), JSON.stringify(anchors))
-  const costumeRack = createCostumeRack({ slot: character.costumeSlot, anchors })
+  /*
+   * Two racks, because a shirt is not an alternative to a hat: a crown must not take the
+   * polo off. Both read their fitting through a function, so a rebuild always measures
+   * whoever is on stage now.
+   */
+  const costumeRack = createRack({
+    slot: character.costumeSlot,
+    registry: COSTUMES,
+    context: () => anchors,
+  })
+
+  /*
+   * The shirt is one mesh worn many times, so it is fetched once and cloned per wear —
+   * `build` in a registry is synchronous, and a fetch per costume change would show. A
+   * shirt that will not load degrades to a bare character rather than no app.
+   */
+  const polo = await loadPolo().catch((error) => {
+    console.warn('[shirt] the polo could not be loaded:', error.message)
+    return null
+  })
+
+  // Collaboration artwork, fetched once. None ships today; a brand's logo is one file.
+  const logos = await loadShirtLogos(shirtLogoFiles()).catch((error) => {
+    console.warn('[shirt] logos unavailable:', error.message)
+    return {}
+  })
+
+  const garmentRack = createRack({
+    slot: character.garmentSlot,
+    registry: GARMENTS,
+    context: () => ({ anchors, fit: CHARACTERS[character.current()].shirt, polo, logos }),
+  })
 
   /**
    * The character asked for, which is only the one on stage between swaps. Declared here
@@ -116,8 +150,11 @@ async function boot() {
     panel.update({
       ...lastSnapshot,
       costume: costumeRack.current(),
+      shirt: garmentRack.current(),
       character: character.current(),
       wantedCharacter: wanted,
+      // No fit, no shirt: the row disappears rather than offering what cannot be worn.
+      canWearShirt: Boolean(polo && CHARACTERS[character.current()]?.shirt),
       dance: state.dance?.name ?? null,
     })
   }
@@ -150,6 +187,11 @@ async function boot() {
         // would make the buttons feel broken.
         costumeRack.wear(name)
         bridge.setCostume(name)
+        paintPanel()
+      },
+      setShirt: (name) => {
+        garmentRack.wear(name)
+        bridge.setShirt(name)
         paintPanel()
       },
       toggleDance,
@@ -237,7 +279,8 @@ async function boot() {
 
     anchors = measured
     console.log('[anchors]', character.current(), JSON.stringify(anchors))
-    costumeRack.refit(anchors)
+    costumeRack.refit()
+    garmentRack.refit()
     musicScene?.place(anchors)
     clockScene?.place(anchors)
     // A hop on arrival: the new body says hello, and it covers the frame it appears on.
@@ -312,6 +355,9 @@ async function boot() {
     const saved = snapshot.settings?.costume ?? 'none'
     if (saved !== costumeRack.current()) costumeRack.wear(saved)
 
+    const savedShirt = snapshot.settings?.shirt ?? 'none'
+    if (savedShirt !== garmentRack.current()) garmentRack.wear(savedShirt)
+
     paintPanel()
     statusPill.update(snapshot)
     musicBox.update(snapshot.nowPlaying)
@@ -368,6 +414,9 @@ async function boot() {
         return bubble.say(command.message, { tone: 'sad', duration: 5000 })
       case 'costume':
         costumeRack.wear(command.name)
+        return paintPanel()
+      case 'shirt':
+        garmentRack.wear(command.name)
         return paintPanel()
       case 'character':
         // Sent by the menu bar, and echoed back for a swap the panel started — which

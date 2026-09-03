@@ -115,6 +115,16 @@ export const CHARACTER_MENU = Object.freeze([
 export const DEFAULT_CHARACTER = 'banana'
 
 /**
+ * What the buddy can wear on its body, as opposed to on its head — one blank polo, plus an
+ * entry per brand collaboration. The keys must match SHIRTS in
+ * src/renderer/scene/shirts.js, which also owns the colours and the print areas.
+ */
+export const SHIRT_MENU = Object.freeze([
+  ['none', 'None'],
+  ['blank', 'Blank polo'],
+])
+
+/**
  * Menu entries for the dress-up options. The keys must match the implementations in
  * src/renderer/scene/costumes.js and src/renderer/animation/dances.js.
  */
@@ -189,6 +199,7 @@ export const IPC = Object.freeze({
   revealData: 'data:reveal',
   setCostume: 'costume:set',
   setCharacter: 'character:set',
+  setShirt: 'shirt:set',
 
   mocoConnect: 'moco:connect',
   mocoDisconnect: 'moco:disconnect',

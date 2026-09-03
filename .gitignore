@@ -6,3 +6,7 @@ release/
 # `npm run optimise-model`. Keeping both would double the repository size for no benefit.
 assets/characters/*.glb
 !assets/characters/*.source.glb
+
+# The polo is the other way round: the bake's output is only ~100KB, so it is committed and
+# a fresh clone needs no `npm run bake-garment` before it can build. Its 28MB source is
+# kept for re-baking, like the characters' and the dance's.

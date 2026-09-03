@@ -52,6 +52,7 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
       meetingUseMic: settings.meetingUseMic,
       costume: settings.costume,
       character: settings.character,
+      shirt: settings.shirt,
       dataDir: settings.dataDir,
       // Single source for the renderer's clock-prop trigger: the main process owns it.
       calendarClockLeadMinutes: CALENDAR.clockLeadMinutes,

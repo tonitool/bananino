@@ -1,6 +1,7 @@
 import { el } from '../dom.js'
 import { CHARACTERS } from '../../scene/characters.js'
 import { COSTUMES } from '../../scene/costumes.js'
+import { SHIRTS } from '../../scene/shirts.js'
 
 /**
  * Everything about how the buddy looks, in one place: who it is, what it is wearing and
@@ -11,10 +12,12 @@ import { COSTUMES } from '../../scene/costumes.js'
  * measuring megabytes of mesh, so the card that was pressed says it is working rather
  * than sitting there looking ignored.
  */
-export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) => {
+export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, onClose }) => {
   let current = null
   let pending = null
   let costume = 'none'
+  let shirt = 'none'
+  let canWearShirt = false
   let dance = null
 
   const marks = new Map()
@@ -62,6 +65,33 @@ export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) 
     ]),
   )
 
+  /*
+   * Named rather than emoji, unlike the costumes: these are collaborations, and a brand's
+   * shirt is picked by its name.
+   */
+  const shirtButtons = new Map(
+    Object.entries(SHIRTS).map(([id, { label }]) => [
+      id,
+      el('button', {
+        class: 'chip chip--shirt',
+        type: 'button',
+        text: label,
+        onclick: () => onShirt(id),
+      }),
+    ]),
+  )
+
+  /*
+   * Title and chips together, so the pair disappears as one when the character on stage
+   * has no shirt to wear — a heading over an empty gap reads as something broken.
+   */
+  const shirtSection = el('div', { class: 'shirt-section' }, [
+    el('p', { class: 'section-title', text: 'Shirt' }),
+    el('div', { class: 'costume-row', role: 'group', 'aria-label': 'Shirt' }, [
+      ...shirtButtons.values(),
+    ]),
+  ])
+
   const danceButton = el('button', {
     class: 'button button--quiet',
     type: 'button',
@@ -81,6 +111,7 @@ export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) 
     el('div', { class: 'costume-row', role: 'group', 'aria-label': 'Costume' }, [
       ...costumeButtons.values(),
     ]),
+    shirtSection,
     el('div', { class: 'row' }, [el('p', { class: 'section-title', text: 'Motion' }), danceButton]),
   ])
 
@@ -96,6 +127,12 @@ export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) 
       button.setAttribute('aria-pressed', String(name === costume))
     }
 
+    for (const [id, button] of shirtButtons) {
+      button.setAttribute('aria-pressed', String(id === shirt))
+    }
+
+    shirtSection.hidden = !canWearShirt
+
     danceButton.textContent = dance ? 'Stop dancing' : 'Dance'
   }
 
@@ -109,6 +146,8 @@ export const createSettingsTab = ({ onCharacter, onCostume, onDance, onClose }) 
     current = snapshot.character ?? current
     pending = snapshot.wantedCharacter === current ? null : (snapshot.wantedCharacter ?? null)
     costume = snapshot.costume ?? 'none'
+    shirt = snapshot.shirt ?? 'none'
+    canWearShirt = snapshot.canWearShirt === true
     dance = snapshot.dance ?? null
     paint()
   }

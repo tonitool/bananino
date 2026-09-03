@@ -1,5 +1,12 @@
 import { Menu, app, dialog, session, shell } from 'electron'
-import { CALENDAR, CHARACTER_MENU, IPC, UPDATE_REPOSITORY, WINDOW_SIZES } from './constants.js'
+import {
+  CALENDAR,
+  CHARACTER_MENU,
+  IPC,
+  SHIRT_MENU,
+  UPDATE_REPOSITORY,
+  WINDOW_SIZES,
+} from './constants.js'
 import { readSettings, withRecentTask, writeSettings } from './store.js'
 import { createPetWindow } from './petWindow.js'
 import { createPerch } from './perch.js'
@@ -385,6 +392,13 @@ export const startApp = () => {
       saveSettings({ character: id })
       send(IPC.command, { type: 'character', id })
       say(`${known[1].toLowerCase()} it is!`)
+      refresh()
+    },
+    /** What it wears on its body. Its own setting, so a hat and a shirt coexist. */
+    setShirt: (name) => {
+      if (!SHIRT_MENU.some(([id]) => id === name)) return
+      saveSettings({ shirt: name })
+      send(IPC.command, { type: 'shirt', name })
       refresh()
     },
     setDance: (name) => send(IPC.command, { type: 'dance', name }),

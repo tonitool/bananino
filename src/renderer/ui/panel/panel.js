@@ -167,6 +167,7 @@ export const createPanel = ({ actions }) => {
   const settings = createSettingsTab({
     onCharacter: (id) => actions.setCharacter(id),
     onCostume: (name) => actions.setCostume(name),
+    onShirt: (name) => actions.setShirt(name),
     onDance: () => actions.toggleDance(),
     onClose: () => focusTab(lastTab),
   })

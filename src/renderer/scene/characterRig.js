@@ -36,6 +36,10 @@ export const createCharacter = (renderer) => {
   const costumeSlot = new Group()
   pivot.add(costumeSlot)
 
+  // A separate slot from the costume's, so a hat and a shirt can be worn at once.
+  const garmentSlot = new Group()
+  pivot.add(garmentSlot)
+
   const root = new Group()
   root.add(pivot)
 
@@ -92,6 +96,7 @@ export const createCharacter = (renderer) => {
     root,
     pivot,
     costumeSlot,
+    garmentSlot,
     height: TARGET_HEIGHT,
     load,
     current: () => current,

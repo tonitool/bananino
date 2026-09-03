@@ -9,6 +9,7 @@ import {
   DEFAULT_CORNER,
   DEFAULT_SIZE_KEY,
   MAX_RECENT_TASKS,
+  SHIRT_MENU,
   WINDOW_SIZES,
 } from './constants.js'
 import { defaultDataDir } from './storage/paths.js'
@@ -45,6 +46,7 @@ const sanitize = (raw) => ({
   meetingUseMic: raw?.meetingUseMic !== false,
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
   character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,
+  shirt: SHIRT_MENU.some(([id]) => id === raw?.shirt) ? raw.shirt : 'none',
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,

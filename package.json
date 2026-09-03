@@ -15,6 +15,7 @@
     "dist:dir": "npm run build && electron-builder --mac dir",
     "optimise-model": "node scripts/optimise-model.mjs",
     "bake-dance": "node scripts/bake-dance.mjs",
+    "bake-garment": "node scripts/bake-garment.mjs",
     "release": "npm run build && electron-builder --mac --publish always",
     "verify": "npm run build && node scripts/verify.mjs",
     "verify:packaged": "node scripts/verify.mjs packaged",

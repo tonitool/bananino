@@ -110,3 +110,22 @@
   background: var(--butter);
   border-color: var(--butter-deep);
 }
+
+/* Worded, not emoji: a collaboration is picked by the brand's name. */
+.chip--shirt {
+  padding: 5px 11px;
+  font-size: var(--text-xs);
+}
+
+.chip--shirt[aria-pressed='true'] {
+  background: var(--butter);
+  border-color: var(--butter-deep);
+  color: var(--cocoa);
+}
+
+/*
+ * The shirt is the banana's alone, so the whole section goes when a cat is on stage.
+ */
+.shirt-section[hidden] {
+  display: none;
+}
