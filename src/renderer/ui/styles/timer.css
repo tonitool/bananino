@@ -2,7 +2,7 @@
 
 .timer {
   flex: none;
-  /* Anchors the suggestion dropdown, and lifts it above the rest of the panel. */
+  /* Lifts the card above the rest of the panel, and above the character it overlaps. */
   position: relative;
   z-index: 4;
   padding: 11px 12px 12px;
@@ -252,28 +252,30 @@
 }
 
 /*
- * The MOCO suggestion dropdown floats over the panel, anchored to the timer card that
- * spawned it. (These base styles went missing before the first commit — an open dropdown
- * fell all the way back to the browser's default list/button look.)
+ * The MOCO task results sit in the flow rather than floating over the panel, and they have
+ * to: .panel clips its content — `overflow: hidden` plus the clip-path that plays the
+ * open/close melt — so an absolutely positioned dropdown added no height, the window never
+ * grew to make room, and the list was cut off at the panel's bottom edge. Two long German
+ * project names were enough to leave a single result sliced through the middle.
+ *
+ * In the flow it grows the panel, the ResizeObserver in panel.js reports the new height and
+ * the window follows, up to the screen's own ceiling — so what is on screen is the whole
+ * list. (These base styles went missing before the first commit — an open dropdown fell all
+ * the way back to the browser's default list/button look.)
  */
 .suggestions {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  z-index: 6;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 210px;
+  /* Roughly six results; beyond that the list scrolls rather than eat the whole screen. */
+  max-height: 280px;
   overflow-y: auto;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 4px;
   list-style: none;
   border: 1px solid var(--cream-line);
   border-radius: var(--radius-card);
   background: var(--cream);
-  box-shadow: var(--shadow-panel);
 }
 
 .suggestions:empty {
@@ -315,11 +317,9 @@
   color: var(--cocoa-soft);
 }
 
-/* Inside the form the list belongs in the flow, not floating over the panel. */
+/* Tighter inside the manual-entry form, which is already a card within a card. */
 .suggestions--inline {
-  position: static;
-  max-height: 140px;
-  box-shadow: none;
+  max-height: 200px;
   padding: 2px;
 }
 
