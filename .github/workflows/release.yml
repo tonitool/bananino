@@ -2,16 +2,22 @@ name: Release
 
 # Building the app needs macOS: the capture helper is Swift compiled by swiftc, the app
 # bundle is signed ad-hoc by codesign, and the DMG is made by hdiutil. So a release is cut
-# by pushing a tag and letting a macOS runner do it, rather than from whichever machine
-# happens to be to hand.
+# on a macOS runner rather than from whichever machine happens to be to hand.
 #
-# Only a tag push releases. workflow_dispatch builds and leaves the app as a run artifact:
-# a branch run has no tag, so there is nothing to release against, and asking anyway is
-# how the first run reported failure after a perfectly good build.
+# Two ways in. Pushing a v* tag releases that tag. Running the workflow by hand releases
+# only if asked, and then takes its version from package.json and makes the tag here —
+# which means a release can be cut by someone who can run a workflow but cannot push a
+# tag, and that the version in the repository is what decides what ships. Asked for
+# nothing, a manual run just builds and leaves the app as the run's artifact.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: Cut a release for the version in package.json
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -29,18 +35,50 @@ jobs:
           node-version: 22
           cache: npm
 
+      # One step decides what this run is, so every step below agrees about it.
+      #
       # electron-builder publishes to the release for the version in package.json, not to
-      # the tag it was triggered by. If those disagree, the tag says one thing and the
-      # download says another — so stop here rather than shipping that.
-      - name: Check the tag matches package.json
-        if: startsWith(github.ref, 'refs/tags/v')
+      # whatever triggered the run. On a tag push those can disagree — the tag says one
+      # thing and the download says another — so a mismatch stops the run here.
+      - name: Decide what this run is
+        id: run
         run: |
-          tag="${GITHUB_REF_NAME#v}"
           version="$(node -p 'require("./package.json").version')"
-          if [ "$tag" != "$version" ]; then
-            echo "tag v$tag does not match package.json $version"
+
+          if [ "${{ github.event_name }}" = 'push' ]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "${tag#v}" != "$version" ]; then
+              echo "tag $tag does not match package.json $version"
+              exit 1
+            fi
+            releasing=true
+          elif [ "${{ inputs.release }}" = 'true' ]; then
+            tag="v$version"
+            releasing=true
+          else
+            tag=''
+            releasing=false
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "releasing=$releasing" >> "$GITHUB_OUTPUT"
+          echo "cutting ${tag:-nothing} (releasing: $releasing)"
+
+      # A manual release has no tag of its own, so it makes one before anything is built.
+      # Refusing a tag that already exists is what stops a second run quietly re-cutting a
+      # version that has already shipped.
+      - name: Tag this commit
+        if: github.event_name == 'workflow_dispatch' && inputs.release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.run.outputs.tag }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists — bump the version in package.json to cut a new one"
             exit 1
           fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=refs/tags/$TAG" -f "sha=$GITHUB_SHA"
 
       - run: npm ci
 
@@ -50,10 +88,10 @@ jobs:
       - name: Generate the character models
         run: npm run optimise-model
 
-      # No tag, no release: this leaves the app in the run's artifact and touches nothing
-      # public, so a dispatch run can be used to check a build without littering drafts.
+      # Not releasing: this leaves the app in the run's artifact and touches nothing
+      # public, so a manual run can check a build without littering drafts.
       - name: Build and package
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: steps.run.outputs.releasing != 'true'
         run: npm run dist
 
       # Uploads into a *draft* release — see build.publish in package.json. Publishing
@@ -62,7 +100,7 @@ jobs:
       # back "422 Published releases must have a valid tag" from GitHub. The winner had
       # uploaded a single blockmap by then, so the release went out with no app in it.
       - name: Build, package and upload to the draft release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.run.outputs.releasing == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
@@ -75,11 +113,12 @@ jobs:
       # The check that would have caught 1.1.0: a release nobody can download from is
       # worse than no release, and an empty one looks exactly like a good one from here.
       - name: Check the draft actually carries the app
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.run.outputs.releasing == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.run.outputs.tag }}
         run: |
-          names="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+          names="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
           echo "$names"
           for want in '\.dmg$' '\.zip$' '^latest-mac\.yml$'; do
             echo "$names" | grep -qE "$want" || { echo "the draft has no $want asset"; exit 1; }
@@ -87,13 +126,18 @@ jobs:
 
       # Published last, and only once the build is known to be complete, so a failed run
       # leaves a draft to inspect rather than a broken download in front of users.
+      #
+      # --latest is explicit on purpose: the app's update notifier reads
+      # /releases/latest (src/main/update/notifier.js), and GitHub would otherwise pick by
+      # the draft's creation date, which is not necessarily this one.
       - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.run.outputs.releasing == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          TAG: ${{ steps.run.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest
 
-      # Kept for a tag that fails to publish, and for workflow_dispatch runs.
+      # Kept for a release that fails to publish, and for runs that only build.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
