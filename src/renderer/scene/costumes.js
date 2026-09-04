@@ -1,3 +1,4 @@
+import { buildCap } from './cap.js'
 import {
   BoxGeometry,
   ConeGeometry,
@@ -16,7 +17,9 @@ import {
  * few cones and tori parented to the pivot follow every hop and dance for free.
  *
  * Everything is expressed relative to measured anchors, so a swapped-in model still gets
- * its hat on its head.
+ * its hat on its head. A builder is handed the whole context rather than the anchors
+ * alone, because the cap also needs to know what it is wearing — its colour, its pattern
+ * and its print all come from the current look.
  */
 
 const matte = (color) => new MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.02 })
@@ -34,7 +37,7 @@ const COLORS = Object.freeze({
   wool: 0x5b8fb9,
 })
 
-const partyHat = ({ ringY, sideX }) => {
+const partyHat = ({ anchors: { ringY, sideX } }) => {
   const group = new Group()
   const radius = sideX * 0.55
 
@@ -50,7 +53,7 @@ const partyHat = ({ ringY, sideX }) => {
   return group
 }
 
-const santaHat = ({ ringY, sideX }) => {
+const santaHat = ({ anchors: { ringY, sideX } }) => {
   const group = new Group()
   const radius = sideX * 0.62
 
@@ -69,7 +72,7 @@ const santaHat = ({ ringY, sideX }) => {
   return group
 }
 
-const headphones = ({ eyeY, sideX }) => {
+const headphones = ({ anchors: { eyeY, sideX } }) => {
   const group = new Group()
   // Wider than the head so the band arcs clear over it instead of sinking into the dome,
   // which is exactly where the ear cups want to be anyway.
@@ -95,7 +98,7 @@ const headphones = ({ eyeY, sideX }) => {
   return group
 }
 
-const shades = ({ eyeY, frontZ, sideX }) => {
+const shades = ({ anchors: { eyeY, frontZ, sideX } }) => {
   const group = new Group()
   const lensRadius = sideX * 0.3
   const offset = lensRadius * 1.05
@@ -121,7 +124,7 @@ const shades = ({ eyeY, frontZ, sideX }) => {
   return group
 }
 
-const crown = ({ ringY, sideX }) => {
+const crown = ({ anchors: { ringY, sideX } }) => {
   const group = new Group()
   // Seated on a wider part of the head so the band is visible, not swallowed by the dome.
   const radius = sideX * 0.82
@@ -148,7 +151,7 @@ const crown = ({ ringY, sideX }) => {
   return group
 }
 
-const beanie = ({ ringY, sideX }) => {
+const beanie = ({ anchors: { ringY, sideX } }) => {
   const group = new Group()
   const radius = sideX * 0.9
 
@@ -175,5 +178,10 @@ export const COSTUMES = Object.freeze({
   headphones: { label: 'Headphones', emoji: '🎧', build: headphones },
   shades: { label: 'Shades', emoji: '🕶️', build: shades },
   crown: { label: 'Crown', emoji: '👑', build: crown },
-  beanie: { label: 'Beanie', emoji: '🧢', build: beanie },
+  beanie: { label: 'Beanie', emoji: '🧶', build: beanie },
+  /*
+   * The cap is the odd one out, and deliberately: it is the only costume that reads the
+   * look, because it is the only one a brand can put a logo on. See cap.js.
+   */
+  cap: { label: 'Cap', emoji: '🧢', build: buildCap },
 })

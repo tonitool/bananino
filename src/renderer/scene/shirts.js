@@ -1,30 +1,11 @@
 /**
- * The shirt the buddy can wear, and what is printed on it. Data only — no three.js — so
- * the menu, the tests and the renderer all read the same list.
+ * The shirt: whether it is on, and where a design may be printed on it. What it is made
+ * of — colour, pattern, logo — comes from the look in looks.js, which dresses the cap at
+ * the same time so the two read as one outfit.
  *
- * The point of the blank polo is collaborations: a brand hands over a logo, and it should
- * land on the chest correctly without anybody editing 3D code. So a collaboration is one
- * entry here plus one file in assets/shirt/, and nothing else.
+ * Data only, no three.js, so the menu, the tests and the renderer all read the same list.
  */
 
-/**
- * Where a design may be printed, in the shirt's own texture coordinates.
- *
- * `u` runs around the body — 0.5 is dead centre of the chest, 0 and 1 meet at the middle
- * of the back — and `v` runs up the whole shirt from hem (0) to the top of the collar (1).
- * The chest is therefore the bottom four tenths of `v`: above that is shoulder, sleeve and
- * collar. A logo is scaled to fit inside its box and centred, never stretched to fill it.
- *
- * `size` is how far around the shirt the print may reach, and the box it describes is
- * square on the fabric — so a square logo arrives square. It is one number rather than a
- * width and a height because the two are not interchangeable here: the map wraps a whole
- * circumference into `u` and only the shirt's height into `v`, so a box that looks square
- * in texture coordinates is nothing of the kind on the shirt.
- *
- * These two areas are the contract a collaboration is delivered against, so they are
- * deliberately conservative: both sit well clear of the collar, the hem and the sides,
- * where the fabric turns away from the viewer and a design would foreshorten.
- */
 export const PRINT_AREAS = Object.freeze({
   /**
    * The classic polo position, over the wearer's left chest — about 23px on screen, so a
@@ -55,12 +36,14 @@ export const DEFAULT_PLACEMENT = 'left-chest'
  * areas above. Ids must match SHIRT_MENU in src/main/constants.js; test/garments.test.mjs
  * keeps the two honest.
  */
+/**
+ * Whether the shirt is on. It used to carry a colour and a logo per entry, which meant a
+ * collaboration was two entries — one for the shirt and one for the hat — describing the
+ * same brand twice. The look does that job now.
+ */
 export const SHIRTS = Object.freeze({
   none: Object.freeze({ label: 'None' }),
-  blank: Object.freeze({
-    label: 'Blank polo',
-    color: '#f4f4f5',
-  }),
+  polo: Object.freeze({ label: 'Polo' }),
 })
 
 export const isShirtId = (id) => Object.hasOwn(SHIRTS, id)
@@ -68,12 +51,3 @@ export const isShirtId = (id) => Object.hasOwn(SHIRTS, id)
 export const shirtId = (id) => (isShirtId(id) ? id : 'none')
 
 export const shirtIds = () => Object.keys(SHIRTS)
-
-/** The logos a session needs to fetch: one per collaboration that names one. */
-export const shirtLogoFiles = () => [
-  ...new Set(
-    Object.values(SHIRTS)
-      .map((shirt) => shirt.logo)
-      .filter(Boolean),
-  ),
-]

@@ -40,6 +40,7 @@ const IPC = {
   setCostume: 'costume:set',
   setCharacter: 'character:set',
   setShirt: 'shirt:set',
+  setLook: 'look:set',
   mocoConnect: 'moco:connect',
   mocoDisconnect: 'moco:disconnect',
   mocoPush: 'moco:push',
@@ -100,6 +101,7 @@ contextBridge.exposeInMainWorld('pet', {
   setCostume: send(IPC.setCostume),
   setCharacter: send(IPC.setCharacter),
   setShirt: send(IPC.setShirt),
+  setLook: send(IPC.setLook),
 
   mocoConnect: (payload) => ipcRenderer.send(IPC.mocoConnect, payload),
   mocoDisconnect: () => ipcRenderer.send(IPC.mocoDisconnect),

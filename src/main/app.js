@@ -3,6 +3,7 @@ import {
   CALENDAR,
   CHARACTER_MENU,
   IPC,
+  LOOK_MENU,
   SHIRT_MENU,
   UPDATE_REPOSITORY,
   WINDOW_SIZES,
@@ -414,6 +415,14 @@ export const startApp = () => {
       send(IPC.command, { type: 'shirt', name })
       refresh()
     },
+    /** What the cap and the shirt are made of. One setting dresses both. */
+    setLook: (id) => {
+      if (!LOOK_MENU.some(([known]) => known === id)) return
+      saveSettings({ look: id })
+      send(IPC.command, { type: 'look', id })
+      refresh()
+    },
+
     setDance: (name) => send(IPC.command, { type: 'dance', name }),
 
     /** Recovery for a window stranded on a disconnected or unwatched display. */

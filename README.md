@@ -168,30 +168,68 @@ build a profile of the head, and each accessory seats itself at the height where
 is as wide as the accessory is. A hat placed at one fixed height either floats above a
 dome or sinks into it — and a swapped-in model would put its hat somewhere absurd.
 
-## The shirt
+## The cap and the shirt
 
-Bananino also has a **Shirt**, in the same three places. It is a separate slot from the
-costume, so a crown does not take the shirt off. Only Bananino wears one — the shirt is
-modelled for that body, so the row is not offered while the Cat is on stage.
+**Settings…**, the menu bar and right-click all have a **Look** — ten of them, plain
+colours and woven patterns — and it dresses everything at once. Picking Breton gets a
+striped cap *and* a striped shirt, because a look is an outfit and not two choices that
+have to be kept in step. The **Shirt** is a separate switch for whether the polo is on at
+all, and the cap is one of the costumes, so a crown and a shirt still coexist.
 
-The point of a blank shirt is collaborations. A brand hands over a logo, and it lands on
-the chest without anybody touching 3D code: one entry in
-[shirts.js](src/renderer/scene/shirts.js) — label, fabric colour, logo filename, print area
-— and one PNG in [`assets/shirt/`](assets/shirt/), which the build copies by folder contents
-rather than by name.
+The point of it is collaborations. A brand hands over a logo, and it lands on the cap
+without anybody touching 3D: one entry in [looks.js](src/renderer/scene/looks.js) and one
+PNG in [`assets/shirt/`](assets/shirt/), which the build copies by folder contents rather
+than by name.
 
 ```js
-acme: { label: 'Acme', color: '#1d4ed8', logo: 'acme.png', placement: 'centre' },
+acme: { label: 'Acme', color: '#1d4ed8', brim: '#12328f', logo: 'acme.png' },
 ```
 
-The shirt itself is a modelled tee, and getting it wearable took a bake and a fit.
+### Why the logo goes on the hat
+
+The shirt is a modelled garment — see below — and that decides what can be done with it.
+Its texture coordinates are a photogrammetry scatter, so it had to be given new ones at
+bake time, and its print sits on a chest that curves away with arms either side of it.
+
+The cap is built from primitives instead, and that is not a shortcut: it is what makes it
+printable. Its texture coordinates are assigned in [cap.js](src/renderer/scene/cap.js), so
+a design goes exactly where it is put; its colour is a material rather than a baked atlas;
+and it seats itself from measured anchors like every other hat, so **the Cat wears it too**
+— the shirt is cut for a banana and never will fit one.
+
+Its print is 30x14px against the shirt's 37x37, so the cap is not the bigger surface. It is
+the better one: the crown front stands nearly vertical, faces the camera, sits at eye level
+in the silhouette, and nothing overlaps it. The box is 2.2 times wider than tall, which is
+what a cap is really printed at — a wordmark belongs on the hat and a round mark on the
+chest.
+
+Both are painted by one canvas in [fabric.js](src/renderer/scene/fabric.js): the colour,
+then a pattern woven into it, then the design on top. Patterns are counted around the
+garment rather than measured in pixels, so a stripe meets itself at the seam up the back
+instead of showing a half-band, and the cap asks for a third of the shirt's density because
+a weave counted for a chest arrives on a forty-pixel crown as noise.
+
+### Fitting a cap to two very different heads
+
+The Cat's head is 64% wider than the banana's (`sideX` 0.345 against 0.210) and its eyes
+sit higher (0.71 against 0.62). One size cannot work, and resting height alone — what every
+other hat uses — is not enough for a cap: the peak reaches forward and tips down, so its
+front edge ends up well below the band holding it. Seated that way the peak lay across the
+banana's eyes and left only its mouth, and it blindfolded the Cat outright.
+
+So the cap is seated at whichever is higher: where a band that wide comes to rest, or the
+lowest it can sit while its peak still clears the eye line. A face is the one thing a hat
+must not take.
+
+## The shirt itself
+
+Bananino's polo is a modelled garment, and getting it wearable took a bake and a fit.
 
 **The bake** ([bake-garment.mjs](scripts/bake-garment.mjs)) opens the sealed hem, cuts
 982,850 triangles down to ~4,500, throws away the model's own 4K atlas, and projects fresh
-cylindrical texture coordinates: `u` around the body with 0.5 at the middle of the chest,
-`v` from hem to collar. The original UVs could never have carried a design — the chest alone
-sprayed across 83% of the atlas in 83 separate islands, which is what photogrammetry
-produces and what a print area cannot be described against.
+cylindrical texture coordinates. The original UVs could never have carried a design — the
+chest alone sprayed across 83% of the atlas in 83 separate islands, which is what
+photogrammetry produces and what a print area cannot be described against.
 
 ```bash
 npm run bake-garment   # assets/costumes/polo.source.glb -> assets/costumes/polo.glb
@@ -201,17 +239,17 @@ npm run bake-garment   # assets/costumes/polo.source.glb -> assets/costumes/polo
 [characters.js](src/renderer/scene/characters.js), and it is the one place in the app where
 placement is hand-tuned rather than measured — because this body defeats measuring. The
 banana is a *curve*: its belly juts forward at the hem and its shoulder leans back, so no
-axis runs down it and radii at one height vary by nearly three to one. Every attempt to fit
-the shirt to a measured surface fought that. So the shirt declares where its hem sits, how
-tall, how wide and how deep it is, how far forward it stands and how far back it leans, all
-tuned against renders. Width and depth are separate for a reason worth knowing: a shirt's
-shoulders taper front-to-back and this character's do not taper at all, so on a single scale
-the yoke sinks inside the body and the sleeves read as two loose puffs.
+axis runs down it and radii at one height vary by nearly three to one. So the shirt declares
+where its hem sits, how tall, how wide and how deep it is, how far forward it stands and how
+far back it leans, all tuned against renders. Width and depth are separate for a reason
+worth knowing: a shirt's shoulders taper front-to-back and this character's do not taper at
+all, so on a single scale the yoke sinks inside the body and the sleeves read as two loose
+puffs.
 
 The neckline is not placed. The modelled neck hole is far narrower than a body that is the
 same width all the way up, so the collar ends up buried inside the character and what shows
-is the yoke running into it — which is what a neckline looks like anyway. An earlier bake cut
-the top off to make room for a head that never emerges, and all that achieved was a
+is the yoke running into it — which is what a neckline looks like anyway. An earlier bake
+cut the top off to make room for a head that never emerges, and all that achieved was a
 strapless tube.
 
 ## The samba

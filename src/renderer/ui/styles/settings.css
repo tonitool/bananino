@@ -129,3 +129,60 @@
 .shirt-section[hidden] {
   display: none;
 }
+
+/*
+ * The wardrobe row. Each swatch shows its own cloth: the colour, and a hint of the second
+ * colour where the look has a pattern, so the row reads as fabric rather than as ten
+ * anonymous dots.
+ */
+.look-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip--look {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--cream-line);
+  background: var(--look);
+  cursor: pointer;
+}
+
+.chip--look[data-pattern='stripe'] {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--look) 0 4px,
+    var(--look-accent) 4px 8px
+  );
+}
+
+.chip--look[data-pattern='panel'] {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--look) 0 4px,
+    var(--look-accent) 4px 8px
+  );
+}
+
+.chip--look[data-pattern='check'] {
+  background:
+    repeating-linear-gradient(90deg, var(--look-accent) 0 5px, transparent 5px 10px),
+    repeating-linear-gradient(180deg, var(--look-accent) 0 5px, var(--look) 5px 10px);
+}
+
+.chip--look[data-pattern='dots'] {
+  background: radial-gradient(var(--look-accent) 32%, var(--look) 34%) 0 0 / 9px 9px;
+}
+
+.chip--look[data-pattern='band'] {
+  background: linear-gradient(180deg, var(--look) 0 62%, var(--look-accent) 62% 100%);
+}
+
+.chip--look[aria-pressed='true'] {
+  border-color: var(--cocoa);
+  outline: 2px solid var(--butter-deep);
+  outline-offset: 1px;
+}

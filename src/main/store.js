@@ -7,8 +7,10 @@ import {
   COSTUME_MENU,
   DEFAULT_CHARACTER,
   DEFAULT_CORNER,
+  DEFAULT_LOOK,
   DEFAULT_SIZE_KEY,
   MAX_RECENT_TASKS,
+  LOOK_MENU,
   SHIRT_MENU,
   WINDOW_SIZES,
 } from './constants.js'
@@ -47,6 +49,7 @@ const sanitize = (raw) => ({
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
   character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,
   shirt: SHIRT_MENU.some(([id]) => id === raw?.shirt) ? raw.shirt : 'none',
+  look: LOOK_MENU.some(([id]) => id === raw?.look) ? raw.look : DEFAULT_LOOK,
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,

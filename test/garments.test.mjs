@@ -4,14 +4,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CHARACTERS } from '../src/renderer/scene/characters.js'
-import {
-  DEFAULT_PLACEMENT,
-  PRINT_AREAS,
-  SHIRTS,
-  shirtId,
-  shirtIds,
-  shirtLogoFiles,
-} from '../src/renderer/scene/shirts.js'
+import { DEFAULT_PLACEMENT, PRINT_AREAS, SHIRTS, shirtId, shirtIds } from '../src/renderer/scene/shirts.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -41,40 +34,17 @@ test('the labels in the menu are the labels in the registry', async () => {
   }
 })
 
-test('"none" is bare and every other shirt is a colour and a placement that exists', () => {
+test('the shirt is a pair of ids and nothing more', () => {
   assert.ok(Object.hasOwn(SHIRTS, 'none'), 'there is no way to wear nothing')
-  assert.equal(SHIRTS.none.color, undefined, '"none" must not describe fabric')
 
   for (const [id, shirt] of Object.entries(SHIRTS)) {
     assert.equal(typeof shirt.label, 'string', `${id} has no label`)
-    if (id === 'none') continue
-
-    assert.match(shirt.color, /^#[0-9a-f]{6}$/i, `${id} has no fabric colour`)
-    if (shirt.placement !== undefined) {
-      assert.ok(
-        Object.hasOwn(PRINT_AREAS, shirt.placement),
-        `${id} is printed in "${shirt.placement}", which is not a print area`,
-      )
-    }
-    // A logo without artwork paints nothing; artwork without a logo never gets fetched.
-    if (shirt.logo !== undefined) assert.match(shirt.logo, /\.png$/, `${id}'s logo is not a PNG`)
-  }
-})
-
-/**
- * A brand hands over one file, and the promise is that it lands on the chest without
- * anybody editing 3D code. That only holds if the art it names is actually in the tree —
- * missing art degrades to a plain shirt at runtime, silently, which is exactly the kind of
- * thing nobody notices until a collaboration ships.
- */
-test('every collaboration names artwork that exists', async () => {
-  for (const file of shirtLogoFiles()) {
-    const path = join(ROOT, 'assets', 'shirt', file)
-    const found = await stat(path).then(
-      ({ size }) => size > 0,
-      () => false,
-    )
-    assert.ok(found, `assets/shirt/${file} is named by a shirt but is not in the tree`)
+    /*
+     * Colour and artwork moved to the look, which dresses the cap at the same time. Left
+     * here they would describe the same brand twice and be free to disagree about it.
+     */
+    assert.equal(shirt.color, undefined, `${id} still carries its own colour`)
+    assert.equal(shirt.logo, undefined, `${id} still carries its own artwork`)
   }
 })
 
@@ -95,7 +65,7 @@ test('the print areas sit on the chest, square on the fabric', () => {
 test('an unknown shirt falls back to wearing none', () => {
   assert.equal(shirtId('acme'), 'none')
   assert.equal(shirtId(undefined), 'none')
-  assert.equal(shirtId('blank'), 'blank')
+  assert.equal(shirtId('polo'), 'polo')
 })
 
 /**

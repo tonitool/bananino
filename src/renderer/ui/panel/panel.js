@@ -168,6 +168,7 @@ export const createPanel = ({ actions }) => {
     onCharacter: (id) => actions.setCharacter(id),
     onCostume: (name) => actions.setCostume(name),
     onShirt: (name) => actions.setShirt(name),
+    onLook: (id) => actions.setLook(id),
     onDance: () => actions.toggleDance(),
     onClose: () => focusTab(lastTab),
   })

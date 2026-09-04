@@ -2,6 +2,7 @@ import { el } from '../dom.js'
 import { CHARACTERS } from '../../scene/characters.js'
 import { COSTUMES } from '../../scene/costumes.js'
 import { SHIRTS } from '../../scene/shirts.js'
+import { LOOKS } from '../../scene/looks.js'
 
 /**
  * Everything about how the buddy looks, in one place: who it is, what it is wearing and
@@ -12,12 +13,13 @@ import { SHIRTS } from '../../scene/shirts.js'
  * measuring megabytes of mesh, so the card that was pressed says it is working rather
  * than sitting there looking ignored.
  */
-export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, onClose }) => {
+export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onLook, onDance, onClose }) => {
   let current = null
   let pending = null
   let costume = 'none'
   let shirt = 'none'
   let canWearShirt = false
+  let look = 'cream'
   let dance = null
 
   const marks = new Map()
@@ -92,6 +94,28 @@ export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, on
     ]),
   ])
 
+  /*
+   * The wardrobe. A swatch rather than a name, because what you are choosing is a colour
+   * and a weave — and because ten names would not fit a 348px panel.
+   */
+  const lookButtons = new Map(
+    Object.entries(LOOKS).map(([id, entry]) => [
+      id,
+      el('button', {
+        class: 'chip chip--look',
+        type: 'button',
+        title: entry.label,
+        'aria-label': entry.label,
+        vars: {
+          '--look': entry.color,
+          '--look-accent': entry.accent ?? entry.brim ?? entry.color,
+        },
+        dataset: { pattern: entry.pattern ?? 'plain' },
+        onclick: () => onLook(id),
+      }),
+    ]),
+  )
+
   const danceButton = el('button', {
     class: 'button button--quiet',
     type: 'button',
@@ -106,6 +130,10 @@ export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, on
     el('p', { class: 'section-title', text: 'Character' }),
     el('div', { class: 'character-picker', role: 'group', 'aria-label': 'Character' }, [
       ...cards.values(),
+    ]),
+    el('p', { class: 'section-title', text: 'Look' }),
+    el('div', { class: 'look-row', role: 'group', 'aria-label': 'Look' }, [
+      ...lookButtons.values(),
     ]),
     el('p', { class: 'section-title', text: 'Costume' }),
     el('div', { class: 'costume-row', role: 'group', 'aria-label': 'Costume' }, [
@@ -131,6 +159,10 @@ export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, on
       button.setAttribute('aria-pressed', String(id === shirt))
     }
 
+    for (const [id, button] of lookButtons) {
+      button.setAttribute('aria-pressed', String(id === look))
+    }
+
     shirtSection.hidden = !canWearShirt
 
     danceButton.textContent = dance ? 'Stop dancing' : 'Dance'
@@ -148,6 +180,7 @@ export const createSettingsTab = ({ onCharacter, onCostume, onShirt, onDance, on
     costume = snapshot.costume ?? 'none'
     shirt = snapshot.shirt ?? 'none'
     canWearShirt = snapshot.canWearShirt === true
+    look = snapshot.look ?? look
     dance = snapshot.dance ?? null
     paint()
   }

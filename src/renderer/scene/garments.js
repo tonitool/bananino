@@ -1,6 +1,7 @@
-import { Box3, CanvasTexture, DoubleSide, Group, MeshStandardMaterial, SRGBColorSpace, Vector3 } from 'three'
+import { Box3, DoubleSide, Group, MeshStandardMaterial, Vector3 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DEFAULT_PLACEMENT, PRINT_AREAS, SHIRTS } from './shirts.js'
+import { paintFabric, printStretch } from './fabric.js'
 
 /**
  * The polo: a modelled shirt, opened at the hem and given usable texture coordinates by
@@ -43,12 +44,6 @@ const cloth = (map) =>
      */
     side: DoubleSide,
   })
-
-/**
- * The canvas the shirt is painted on. Square for convenience only — a square on this canvas
- * is emphatically not a square on the shirt, which is what `printStretch` is for.
- */
-const TEXTURE_SIZE = 1024
 
 /**
  * Loads the shirt once. Kept as a template to clone from, because the rack rebuilds what
@@ -98,54 +93,8 @@ const measureBodyRadius = ({ template, bounds, height }) => {
   return radius
 }
 
-/**
- * Paints the shirt's surface: the fabric colour, then the logo inside its print area,
- * scaled to fit and centred so it keeps its own proportions once it is on the fabric — the
- * one thing a brand will not forgive. The rack disposes the texture when the shirt comes
- * off.
- */
-export const paintShirt = ({ shirt, logo, stretch }) => {
-  const canvas = document.createElement('canvas')
-  canvas.width = TEXTURE_SIZE
-  canvas.height = TEXTURE_SIZE
-  const context = canvas.getContext('2d')
+/** The canvas the shirt is painted on. */
 
-  context.fillStyle = shirt.color ?? '#f4f4f5'
-  context.fillRect(0, 0, TEXTURE_SIZE, TEXTURE_SIZE)
-
-  if (logo) {
-    const area = PRINT_AREAS[shirt.placement] ?? PRINT_AREAS[DEFAULT_PLACEMENT]
-    /*
-     * The print box is square on the fabric, which makes it tall and thin on the canvas:
-     * `stretch` is how much further one step of u travels than one step of v, and it has
-     * to be undone here or a logo reaches the shirt as a horizontal smear.
-     */
-    const width = area.size * TEXTURE_SIZE
-    const height = width * stretch
-    const scale = Math.min(width / logo.width, height / (logo.height * stretch))
-
-    context.drawImage(
-      logo,
-      area.u * TEXTURE_SIZE - (logo.width * scale) / 2,
-      // v runs up the shirt, a canvas runs down.
-      (1 - area.v) * TEXTURE_SIZE - (logo.height * scale * stretch) / 2,
-      logo.width * scale,
-      logo.height * scale * stretch,
-    )
-  }
-
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-}
-
-/**
- * How much further one step of `u` travels across the fitted shirt than one step of `v`:
- * `u` wraps the whole circumference, `v` covers the height, and this shirt is far wider
- * around than it is tall. Everything drawn on it has to be stretched by this or it arrives
- * squashed — a square logo came out as a four-to-one streak before this existed.
- */
-const printStretch = (fit) => (2 * Math.PI * fit.width) / fit.height
 
 /**
  * One shirt, fitted and painted. `fit` carries the numbers from characters.js, all but the
@@ -156,10 +105,15 @@ const printStretch = (fit) => (2 * Math.PI * fit.width) / fit.height
  * person's do and this character's do not taper at all — fitted on one scale, the yoke
  * sinks inside the body and the sleeves read as two loose puffs with a gap between them.
  */
-const buildPolo = ({ anchors, fit, polo, shirt, logo }) => {
+const buildPolo = ({ anchors, fit, polo, look, logo }) => {
   const group = new Group()
   const worn = polo.template.clone(true)
-  const map = paintShirt({ shirt, logo, stretch: printStretch(fit) })
+  const map = paintFabric({
+    look,
+    logo,
+    area: PRINT_AREAS[look.placement ?? DEFAULT_PLACEMENT],
+    stretch: printStretch(fit),
+  })
 
   worn.traverse((child) => {
     if (child.isMesh) child.material = cloth(map)
@@ -184,28 +138,6 @@ const buildPolo = ({ anchors, fit, polo, shirt, logo }) => {
 }
 
 /**
- * Fetches the collaboration logos once at boot, so painting a shirt stays synchronous. A
- * logo that will not load is reported and skipped — the shirt then wears plain, which is a
- * better failure than no shirt.
- */
-export const loadShirtLogos = async (files) => {
-  const entries = await Promise.all(
-    files.map(async (file) => {
-      try {
-        const image = new Image()
-        image.src = `./shirt/${file}`
-        await image.decode()
-        return [file, image]
-      } catch (error) {
-        console.warn(`[shirt] logo "${file}" could not be loaded:`, error.message)
-        return null
-      }
-    }),
-  )
-  return Object.fromEntries(entries.filter(Boolean))
-}
-
-/**
  * The garments registry, in the same shape as COSTUMES so one rack can wear either. Only
  * the polo exists; every collaboration is a different print on the same shirt rather than
  * a different garment, which is the whole point of having one blank shirt.
@@ -222,9 +154,15 @@ export const GARMENTS = Object.freeze(
         build:
           id === 'none'
             ? null
-            : ({ anchors, fit, polo, logos }) =>
+            : ({ anchors, fit, polo, look, logos }) =>
                 fit && polo
-                  ? buildPolo({ anchors, fit, polo, shirt, logo: logos?.[shirt.logo] ?? null })
+                  ? buildPolo({
+                      anchors,
+                      fit,
+                      polo,
+                      look,
+                      logo: look.logo ? (logos?.[look.logo] ?? null) : null,
+                    })
                   : null,
       },
     ]),

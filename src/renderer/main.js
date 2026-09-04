@@ -5,8 +5,9 @@ import { addLighting } from './scene/lighting.js'
 import { createCharacter } from './scene/characterRig.js'
 import { CHARACTERS, characterId } from './scene/characters.js'
 import { COSTUMES } from './scene/costumes.js'
-import { GARMENTS, loadPolo, loadShirtLogos } from './scene/garments.js'
-import { shirtLogoFiles } from './scene/shirts.js'
+import { GARMENTS, loadPolo } from './scene/garments.js'
+import { loadLogos } from './scene/fabric.js'
+import { LOOKS, lookId, lookLogoFiles } from './scene/looks.js'
 import { createRack } from './scene/rack.js'
 import { randomDance } from './animation/dances.js'
 import { createAlphaHitTester } from './interaction/alphaHitTest.js'
@@ -91,12 +92,6 @@ async function boot() {
    * polo off. Both read their fitting through a function, so a rebuild always measures
    * whoever is on stage now.
    */
-  const costumeRack = createRack({
-    slot: character.costumeSlot,
-    registry: COSTUMES,
-    context: () => anchors,
-  })
-
   /*
    * The shirt is one mesh worn many times, so it is fetched once and cloned per wear —
    * `build` in a registry is synchronous, and a fetch per costume change would show. A
@@ -108,15 +103,36 @@ async function boot() {
   })
 
   // Collaboration artwork, fetched once. None ships today; a brand's logo is one file.
-  const logos = await loadShirtLogos(shirtLogoFiles()).catch((error) => {
-    console.warn('[shirt] logos unavailable:', error.message)
+  const logos = await loadLogos(lookLogoFiles()).catch((error) => {
+    console.warn('[look] logos unavailable:', error.message)
     return {}
+  })
+
+  /**
+   * What the cap and the shirt are made of. One setting dresses both, which is the point:
+   * a look is an outfit, not two coincidentally matching choices. Held here rather than
+   * read from the snapshot at build time because the racks rebuild on a character swap
+   * too, and that happens between snapshots.
+   */
+  let look = lookId(null)
+
+  const costumeRack = createRack({
+    slot: character.costumeSlot,
+    registry: COSTUMES,
+    // The hats need only the anchors; the cap also needs to know what it is made of.
+    context: () => ({ anchors, look: LOOKS[look], logos }),
   })
 
   const garmentRack = createRack({
     slot: character.garmentSlot,
     registry: GARMENTS,
-    context: () => ({ anchors, fit: CHARACTERS[character.current()].shirt, polo, logos }),
+    context: () => ({
+      anchors,
+      fit: CHARACTERS[character.current()].shirt,
+      polo,
+      look: LOOKS[look],
+      logos,
+    }),
   })
 
   /**
@@ -151,6 +167,7 @@ async function boot() {
       ...lastSnapshot,
       costume: costumeRack.current(),
       shirt: garmentRack.current(),
+      look,
       character: character.current(),
       wantedCharacter: wanted,
       // No fit, no shirt: the row disappears rather than offering what cannot be worn.
@@ -192,6 +209,15 @@ async function boot() {
       setShirt: (name) => {
         garmentRack.wear(name)
         bridge.setShirt(name)
+        paintPanel()
+      },
+      setLook: (id) => {
+        look = lookId(id)
+        // Both, because a look is one outfit: changing it must not leave the cap in last
+        // season's colour while the shirt moves on.
+        costumeRack.refit()
+        garmentRack.refit()
+        bridge.setLook(look)
         paintPanel()
       },
       toggleDance,
@@ -358,6 +384,13 @@ async function boot() {
     const savedShirt = snapshot.settings?.shirt ?? 'none'
     if (savedShirt !== garmentRack.current()) garmentRack.wear(savedShirt)
 
+    const savedLook = lookId(snapshot.settings?.look)
+    if (savedLook !== look) {
+      look = savedLook
+      costumeRack.refit()
+      garmentRack.refit()
+    }
+
     paintPanel()
     statusPill.update(snapshot)
     musicBox.update(snapshot.nowPlaying)
@@ -417,6 +450,11 @@ async function boot() {
         return paintPanel()
       case 'shirt':
         garmentRack.wear(command.name)
+        return paintPanel()
+      case 'look':
+        look = lookId(command.id)
+        costumeRack.refit()
+        garmentRack.refit()
         return paintPanel()
       case 'character':
         // Sent by the menu bar, and echoed back for a swap the panel started — which

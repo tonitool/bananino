@@ -4,6 +4,7 @@ import {
   COSTUME_MENU,
   DANCE_MENU,
   DEFAULT_SHORTCUTS,
+  LOOK_MENU,
   SHIRT_MENU,
   WINDOW_SIZES,
 } from './constants.js'
@@ -66,6 +67,15 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
       type: 'radio',
       checked: settings.shirt === name,
       click: () => actions.setShirt(name),
+    })),
+  },
+  {
+    label: 'Look',
+    submenu: LOOK_MENU.map(([id, label]) => ({
+      label,
+      type: 'radio',
+      checked: settings.look === id,
+      click: () => actions.setLook(id),
     })),
   },
   {

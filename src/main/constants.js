@@ -115,14 +115,34 @@ export const CHARACTER_MENU = Object.freeze([
 export const DEFAULT_CHARACTER = 'banana'
 
 /**
- * What the buddy can wear on its body, as opposed to on its head — one blank polo, plus an
- * entry per brand collaboration. The keys must match SHIRTS in
- * src/renderer/scene/shirts.js, which also owns the colours and the print areas.
+ * Whether the shirt is on. What it is made of comes from the look, which dresses the cap
+ * at the same time — so this is a pair of ids and not a wardrobe. The keys must match
+ * SHIRTS in src/renderer/scene/shirts.js.
  */
 export const SHIRT_MENU = Object.freeze([
   ['none', 'None'],
-  ['blank', 'Blank polo'],
+  ['polo', 'Polo'],
 ])
+
+/**
+ * The wardrobe: what the cap and the shirt are made of, rather than whether they are on.
+ * One look dresses both, so a collaboration is one entry rather than two. The keys must
+ * match LOOKS in src/renderer/scene/looks.js — test/looks.test.mjs keeps the two honest.
+ */
+export const LOOK_MENU = Object.freeze([
+  ['cream', 'Cream'],
+  ['cobalt', 'Cobalt'],
+  ['forest', 'Forest'],
+  ['cherry', 'Cherry'],
+  ['ink', 'Ink'],
+  ['breton', 'Breton'],
+  ['circus', 'Circus'],
+  ['spots', 'Spots'],
+  ['picnic', 'Picnic'],
+  ['varsity', 'Varsity'],
+])
+
+export const DEFAULT_LOOK = 'cream'
 
 /**
  * Menu entries for the dress-up options. The keys must match the implementations in
@@ -200,6 +220,7 @@ export const IPC = Object.freeze({
   setCostume: 'costume:set',
   setCharacter: 'character:set',
   setShirt: 'shirt:set',
+  setLook: 'look:set',
 
   mocoConnect: 'moco:connect',
   mocoDisconnect: 'moco:disconnect',
