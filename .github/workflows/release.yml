@@ -4,14 +4,21 @@ name: Release
 # bundle is signed ad-hoc by codesign, and the DMG is made by hdiutil. So a release is cut
 # on a macOS runner rather than from whichever machine happens to be to hand.
 #
-# Two ways in. Pushing a v* tag releases that tag. Running the workflow by hand releases
-# only if asked, and then takes its version from package.json and makes the tag here —
-# which means a release can be cut by someone who can run a workflow but cannot push a
-# tag, and that the version in the repository is what decides what ships. Asked for
-# nothing, a manual run just builds and leaves the app as the run's artifact.
+# Three ways in, because whoever cuts a release rarely holds every permission for it.
+#
+#   - push a v* tag             releases that tag, checked against package.json
+#   - push a release/v* branch  releases package.json's version, tags it here, and deletes
+#                               the branch again; it exists only to start this
+#   - run it by hand            releases package.json's version unless told to only build
+#
+# The middle one looks redundant until you need it: pushing a tag and dispatching a
+# workflow are separately privileged, and an automation that can do neither can still push
+# a branch. All three end in the same place — the version in package.json decides what
+# ships, and a version that already has a tag is refused rather than quietly re-cut.
 on:
   push:
     tags: ['v*']
+    branches: ['release/v*']
   workflow_dispatch:
     inputs:
       release:
@@ -51,20 +58,32 @@ jobs:
         run: |
           version="$(node -p 'require("./package.json").version')"
 
-          if [ "${{ github.event_name }}" = 'push' ]; then
-            tag="$GITHUB_REF_NAME"
-            if [ "${tag#v}" != "$version" ]; then
-              echo "tag $tag does not match package.json $version"
-              exit 1
-            fi
-            releasing=true
-          elif [ "${{ inputs.release }}" = 'true' ]; then
-            tag="v$version"
-            releasing=true
-          else
-            tag=''
-            releasing=false
-          fi
+          case "${{ github.event_name }}:$GITHUB_REF_TYPE" in
+            push:tag)
+              # The tag names the version, so it had better be the version: electron-builder
+              # publishes to package.json's release regardless of what triggered the run, and
+              # a disagreement means the tag says one thing and the download says another.
+              tag="$GITHUB_REF_NAME"
+              if [ "${tag#v}" != "$version" ]; then
+                echo "tag $tag does not match package.json $version"
+                exit 1
+              fi
+              releasing=true
+              ;;
+            push:branch)
+              tag="v$version"
+              releasing=true
+              ;;
+            *)
+              if [ "${{ inputs.release }}" = 'true' ]; then
+                tag="v$version"
+                releasing=true
+              else
+                tag=''
+                releasing=false
+              fi
+              ;;
+          esac
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "releasing=$releasing" >> "$GITHUB_OUTPUT"
@@ -78,11 +97,11 @@ jobs:
               >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # A manual release has no tag of its own, so it makes one before anything is built.
-      # Refusing a tag that already exists is what stops a second run quietly re-cutting a
-      # version that has already shipped.
+      # Only a tag push arrives with a tag; the other two make one before anything is
+      # built. Refusing a tag that already exists is what stops a second run quietly
+      # re-cutting a version that has already shipped.
       - name: Tag this commit
-        if: github.event_name == 'workflow_dispatch' && inputs.release
+        if: steps.run.outputs.releasing == 'true' && github.ref_type != 'tag'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.run.outputs.tag }}
@@ -93,6 +112,16 @@ jobs:
           fi
           gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
             -f "ref=refs/tags/$TAG" -f "sha=$GITHUB_SHA"
+
+      # Deleted as soon as it has been read, so the repository does not accumulate a branch
+      # per release. The tag is the record; this was only a doorbell.
+      - name: Drop the trigger branch
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$GITHUB_REF_NAME" \
+            || echo "could not delete $GITHUB_REF_NAME — harmless, but tidy it up by hand"
 
       - run: npm ci
 
