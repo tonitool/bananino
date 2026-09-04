@@ -15,9 +15,15 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: Cut a release for the version in package.json
+        # Ticked by default, because this workflow is called Release and a run of it that
+        # quietly does not release is a wasted trip — which is exactly what happened the
+        # first time it was offered as an unticked box. Untick it to only build.
+        #
+        # What stops that default doing damage is the tag check below: a version that has
+        # already shipped is refused rather than re-cut.
+        description: Cut a release for the version in package.json (untick to only build)
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -62,7 +68,15 @@ jobs:
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "releasing=$releasing" >> "$GITHUB_OUTPUT"
-          echo "cutting ${tag:-nothing} (releasing: $releasing)"
+
+          # On the run's summary page, not just buried in a log: a run that built without
+          # releasing looked identical to one that released, right down to the green tick.
+          if [ "$releasing" = 'true' ]; then
+            echo "Cutting **$tag**." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Building **$version** only — no release. Tick \`release\` to cut one." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # A manual release has no tag of its own, so it makes one before anything is built.
       # Refusing a tag that already exists is what stops a second run quietly re-cutting a
