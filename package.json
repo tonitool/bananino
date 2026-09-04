@@ -1,6 +1,6 @@
 {
   "name": "bananino",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A 3D desktop buddy for macOS that takes notes, tracks time, and remembers your clipboard.",
   "type": "module",
   "main": "src/main/index.js",
@@ -10,7 +10,7 @@
     "start": "npm run build && electron .",
     "dev": "npm run build && electron . --dev",
     "icon": "electron scripts/make-app-icon.mjs",
-    "dist": "npm run build && electron-builder --mac",
+    "dist": "npm run build && electron-builder --mac --publish never",
     "test": "node --test test/*.test.mjs",
     "dist:dir": "npm run build && electron-builder --mac dir",
     "optimise-model": "node scripts/optimise-model.mjs",
