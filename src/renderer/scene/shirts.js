@@ -26,10 +26,20 @@
  * where the fabric turns away from the viewer and a design would foreshorten.
  */
 export const PRINT_AREAS = Object.freeze({
-  /** The classic polo position: small, over the wearer's left chest. */
-  'left-chest': Object.freeze({ u: 0.57, v: 0.33, size: 0.07 }),
-  /** A larger panel across the middle of the chest, for a wordmark or a full design. */
-  centre: Object.freeze({ u: 0.5, v: 0.3, size: 0.1 }),
+  /**
+   * The classic polo position, over the wearer's left chest — about 23px on screen, so a
+   * simple mark and nothing else. A logo with two elements in it will not survive here.
+   */
+  'left-chest': Object.freeze({ u: 0.57, v: 0.33, size: 0.1 }),
+  /**
+   * The chest panel, and the one to use for an actual logo: about 39px on screen, which
+   * is where a design stops being a smudge and starts being recognisable.
+   *
+   * These sizes were set by rendering a design at each of them rather than by taste. At
+   * 0.10 a bold star came out as a dark blob and a finely-drawn wordmark was invisible;
+   * at 0.22 the print ran off the front of the shirt into the hem and the collar.
+   */
+  centre: Object.freeze({ u: 0.5, v: 0.3, size: 0.16 }),
 })
 
 export const DEFAULT_PLACEMENT = 'left-chest'
