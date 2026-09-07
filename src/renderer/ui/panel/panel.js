@@ -9,14 +9,22 @@ import { createUpcomingStrip } from './upcomingStrip.js'
 import { createCalendarTab } from './calendarTab.js'
 import { createManualEntry } from './manualEntry.js'
 import { createSettingsTab } from './settingsTab.js'
+import { createChatTab } from './chatTab.js'
+import { createRail } from './rail.js'
 import { formatMinutes } from '../format.js'
 
 /**
  * One view at a time. Everything used to be stacked on a single fixed-height panel — a
  * timer, a sync bar, a tab, a costume row and a footer — which left each part too small
  * and, when any of them grew, overlapping the others.
+ *
+ * Where you can go, in rail order. Chat comes first because it is the conversation rather
+ * than a sixth tool; the rest are the tools, and rail.js is where that costs one word
+ * instead of six. Ids are also what `focus-tab` commands and the tray menu send, so they
+ * are part of the app's vocabulary and not just this file's.
  */
-const TABS = [
+const DESTINATIONS = [
+  ['chat', 'Chat'],
   ['time', 'Time'],
   ['note', 'Note'],
   ['clips', 'Clips'],
@@ -25,9 +33,16 @@ const TABS = [
 ]
 
 /**
- * Settings is a view without a tab: it is reached from the right-click menu, and while it
- * is showing the tab bar steps aside — a tab strip with nothing selected reads as broken,
- * and the panel is not wide enough for a sixth tab that is used once a month.
+ * Which view opens on launch. Not the first destination: Chat leads the rail because the
+ * conversation is what this is becoming, but there is no reason to greet you with an empty
+ * thread when the timer is the thing you open the panel for.
+ */
+const HOME = 'time'
+
+/**
+ * Settings is a view without a destination: it is reached from the right-click menu, and
+ * while it is showing the rail steps aside — a rail with nothing selected reads as broken,
+ * and a seventh glyph for something used once a month is not worth the room.
  */
 const SETTINGS = 'settings'
 
@@ -173,33 +188,43 @@ export const createPanel = ({ actions }) => {
     onClose: () => focusTab(lastTab),
   })
 
-  const panels = { time, note, clips, meet, calendar, settings }
-  let activeTab = 'note'
-  /** Where Done goes back to, so settings never strands you on a view you did not pick. */
-  let lastTab = TABS[0][0]
+  const chat = createChatTab({
+    onSend: (text) => actions.chatSend(text),
+    onStop: () => actions.chatStop(),
+    onClear: () => actions.chatClear(),
+    onAct: (id, choice) => actions.chatAct(id, choice),
+    onModel: (name) => actions.chatModel(name),
+  })
 
-  const tabButtons = new Map(
-    TABS.map(([id, label]) => [
-      id,
-      el('button', {
-        class: 'tab',
-        type: 'button',
-        role: 'tab',
-        text: label,
-        onclick: () => focusTab(id),
-      }),
-    ]),
-  )
+  const panels = { chat, time, note, clips, meet, calendar, settings }
+  let activeTab = HOME
+  /** Where Done goes back to, so settings never strands you on a view you did not pick. */
+  let lastTab = HOME
+
+  const rail = createRail({ destinations: DESTINATIONS, onFocus: (id) => focusTab(id) })
+
+  /**
+   * Whether the rail offers the chat at all. With no model reachable there is nothing to
+   * talk to, so the destination goes away entirely rather than sitting there as a promise
+   * the app cannot keep — the same way the shirt row disappears for a character that
+   * cannot wear one.
+   *
+   * The exception is standing in it: "Ask Bananino…" in the menu opens the chat whatever
+   * the engine is doing, because the view is where the reason and the fix are written. A
+   * rail showing a view it does not list is the thing to avoid.
+   */
+  let chatEngine = null
+  const offerChat = () =>
+    rail.setAvailable('chat', Boolean(chatEngine?.ok || chatEngine?.checking || activeTab === 'chat'))
 
   const summary = el('span', { class: 'summary' })
   const mocoDot = el('span', { class: 'moco-dot', 'aria-hidden': 'true' })
 
-  const tabBar = el('div', { class: 'tabs', role: 'tablist' }, [...tabButtons.values()])
-
   const root = el('section', { class: 'panel', 'aria-label': 'Bananino' }, [
     running.root,
     upcoming.root,
-    tabBar,
+    rail.root,
+    chat.root,
     time.root,
     note.root,
     clips.root,
@@ -220,17 +245,19 @@ export const createPanel = ({ actions }) => {
 
   /** Unknown ids fall back rather than blanking the panel. */
   function focusTab(requested) {
-    const id = Object.hasOwn(panels, requested) ? requested : TABS[0][0]
+    const id = Object.hasOwn(panels, requested) ? requested : HOME
     if (activeTab !== SETTINGS) lastTab = activeTab
     activeTab = id
 
-    for (const [tabId, button] of tabButtons) {
-      button.setAttribute('aria-selected', String(tabId === id))
-    }
+    offerChat()
+    rail.setActive(id)
     for (const [panelId, view] of Object.entries(panels)) {
       setHidden(view.root, panelId !== id)
     }
-    setHidden(tabBar, id === SETTINGS)
+    setHidden(rail.root, id === SETTINGS)
+
+    // A model started after launch is found when you go looking for the chat.
+    if (id === 'chat') actions.chatOpened()
 
     panels[id].focus()
   }
@@ -253,6 +280,7 @@ export const createPanel = ({ actions }) => {
   }
 
   const update = (snapshot) => {
+    rail.update(snapshot)
     running.update(snapshot)
     upcoming.update(snapshot)
     timer.update(snapshot)
@@ -272,7 +300,7 @@ export const createPanel = ({ actions }) => {
     reportHeight()
   }
 
-  focusTab('time')
+  focusTab(HOME)
 
   return {
     root,
@@ -282,6 +310,12 @@ export const createPanel = ({ actions }) => {
       manual.setMocoTasks(tasks)
     },
     resetManual: manual.reset,
+    /** Its own channel: a conversation is not a view of the day and does not arrive with one. */
+    setChatState: (state) => {
+      chat.setState(state)
+      chatEngine = state.engine ?? null
+      offerChat()
+    },
     focusTab,
     clearNoteInput: note.clearInput,
     focusActive: () => panels[activeTab].focus(),

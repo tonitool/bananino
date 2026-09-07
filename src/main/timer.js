@@ -73,6 +73,22 @@ export const createTimer = ({ getSettings, saveSettings, onChange }) => {
     }
   }
 
+  /**
+   * Drops the running timer without writing anything down.
+   *
+   * This is the undo of a start, and it has to be separate from `stop`: stopping is a
+   * *record* — it appends to the day's log and queues the stint for MOCO — so undoing a
+   * start with it would leave behind exactly the entry the undo was meant to prevent.
+   * Nothing is lost either way, because a start on its own has written nothing yet.
+   */
+  const cancel = () => {
+    const running = active()
+    if (!running) return null
+    saveSettings({ activeTimer: null })
+    onChange?.({ type: 'cancelled', task: running.task })
+    return running
+  }
+
   const toggle = async (task, binding) => (active() ? stop() : start(task ?? lastTask(), binding))
 
   const lastTask = () => getSettings().recentTasks[0] ?? ''
@@ -95,5 +111,5 @@ export const createTimer = ({ getSettings, saveSettings, onChange }) => {
     saveSettings({ activeTimer: { ...running, description } })
   }
 
-  return { start, stop, toggle, describe, nudge, active, lastTask }
+  return { start, stop, cancel, toggle, describe, nudge, active, lastTask }
 }

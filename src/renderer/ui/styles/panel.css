@@ -85,24 +85,36 @@
 }
 
 
-/* ---------- tabs ---------- */
+/* ---------- the rail ---------- */
 
-.tabs {
+/*
+ * Six destinations in the width five labels used to need. The lead keeps its word and the
+ * tools are glyphs, so the open view is named and the rest cost 34px each.
+ */
+.rail {
   display: flex;
-  gap: 3px;
+  align-items: center;
+  gap: 2px;
   padding: 3px;
   border-radius: var(--radius-pill);
   background: var(--cream-sunk);
 }
 
 /* `display: flex` above beats the attribute's own display: none, as for .tab-panel. */
-.tabs[hidden] {
+.rail[hidden] {
   display: none;
 }
 
-.tab {
+.rail-gap {
   flex: 1;
-  padding: 6px 10px;
+}
+
+.dest {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -116,10 +128,62 @@
     color var(--duration-fast) ease;
 }
 
-.tab[aria-selected='true'] {
-  background: var(--cream);
+.dest[hidden] {
+  display: none;
+}
+
+.dest svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.dest:hover {
+  color: var(--cocoa);
+}
+
+/*
+ * The label is in the markup for every destination and only shown for the open one, so
+ * the accessible name is always a word rather than a glyph. `display: none` rather than a
+ * width transition: the rail is 316px wide and an animating label pushes every icon it
+ * has not finished passing.
+ */
+.dest-label {
+  display: none;
+}
+
+.dest[aria-selected='true'] {
+  background: var(--butter);
   color: var(--cocoa);
   box-shadow: 0 1px 3px oklch(30% 0.04 62 / 0.14);
+}
+
+.dest[aria-selected='true'] .dest-label {
+  display: inline;
+}
+
+/*
+ * One dot, detail on hover — the vocabulary the footer's MOCO dot already set. Yellow is
+ * news and red is a problem, and the ring is what keeps a 6px dot legible against both
+ * the sunk rail and the butter of the open destination.
+ */
+.dest-dot {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--butter-deep);
+  box-shadow: 0 0 0 1.5px var(--cream-sunk);
+}
+
+.dest-dot[data-state='problem'] {
+  background: var(--blush-deep);
+}
+
+.dest[aria-selected='true'] .dest-dot {
+  box-shadow: 0 0 0 1.5px var(--butter);
 }
 
 /* ---------- tab panels ---------- */

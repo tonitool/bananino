@@ -193,6 +193,12 @@ async function boot() {
       describeTimer: (text) => bridge.describeTimer(text),
       nudgeTimer: (minutes) => bridge.nudgeTimer(minutes),
       addManualTime: (payload) => bridge.addManualTime(payload),
+      chatSend: (text) => bridge.chatSend(text),
+      chatStop: () => bridge.chatStop(),
+      chatClear: () => bridge.chatClear(),
+      chatOpened: () => bridge.chatOpened(),
+      chatAct: (id, choice) => bridge.chatAct({ id, choice }),
+      chatModel: (name) => bridge.chatModel(name),
       copyClip: (id) => bridge.copyClip(id),
       pinClip: (id) => bridge.pinClip(id),
       deleteClip: (id) => bridge.deleteClip(id),
@@ -374,6 +380,7 @@ async function boot() {
 
   bridge.onCursorMoved(pointer.onCursorMoved)
   bridge.onMocoCatalogue((tasks) => panel.setMocoTasks(tasks))
+  bridge.onChatState((state) => panel.setChatState(state))
 
   bridge.onSnapshot((snapshot) => {
     lastSnapshot = snapshot

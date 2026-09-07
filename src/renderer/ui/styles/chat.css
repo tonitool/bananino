@@ -1,0 +1,242 @@
+/* ---------- chat ---------- */
+
+/*
+ * The transcript scrolls inside itself, and that is load-bearing rather than tidy. The
+ * panel reports its own height and the window is resized to match, so a thread laid out in
+ * the normal flow would grow the window with every answer until it walked off the screen —
+ * exactly the bug the task search had, where a list that added no height left the window
+ * too short to show it.
+ */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* About a paragraph and a reply: enough to read in, short enough to leave the composer
+     and the character where they were. */
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 2px;
+  /* The scroll container is the one place in the panel where text is worth selecting. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.thread[hidden] {
+  display: none;
+}
+
+.thread-empty {
+  padding: 14px 12px;
+  border: 1px dashed var(--cream-line);
+  border-radius: var(--radius-card);
+  color: var(--cocoa-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 7px 10px;
+  border-radius: 13px;
+  font-size: var(--text-sm);
+  line-height: 1.42;
+}
+
+/* You on the right in butter, the buddy on the left in cream: the arrangement every
+   messaging app on this machine already taught the user. */
+.bubble[data-role='user'] {
+  align-self: flex-end;
+  background: var(--butter);
+  border-bottom-right-radius: 5px;
+}
+
+.bubble[data-role='assistant'] {
+  align-self: flex-start;
+  background: var(--cream-sunk);
+  border-bottom-left-radius: 5px;
+}
+
+/* A failure is a message, not a red panel: it says what went wrong and stays out of the
+   way of the conversation around it. */
+.bubble[data-failed='true'] {
+  background: oklch(72% 0.16 25 / 0.1);
+  box-shadow: inset 2px 0 0 var(--blush-deep);
+}
+
+.bubble[data-waiting='true'] .bubble-text {
+  color: var(--cocoa-soft);
+  letter-spacing: 0.12em;
+}
+
+.bubble-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Holds the left end of the composer row so Send can stay pinned to the right. */
+.chat-clear {
+  margin-right: auto;
+}
+
+.chat-input {
+  min-height: 0;
+  padding: 9px 11px;
+  font-size: var(--text-sm);
+}
+
+/*
+ * Who is answering, on screen at all times. The meeting tab makes the same promise about
+ * a transcript in the same words, and for the same reason: where your sentences go is not
+ * something to leave to a settings page.
+ */
+.engine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-size: 10px;
+  color: var(--cocoa-soft);
+}
+
+.engine-led {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: oklch(72% 0.16 145);
+}
+
+.engine-led[data-state='off'] {
+  background: var(--blush-deep);
+}
+
+.engine-led[data-state='checking'] {
+  background: var(--butter-deep);
+}
+
+.engine-text {
+  min-width: 0;
+}
+
+/* The command that fixes it, in the shape of a command. */
+.engine-hint {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--cream-sunk);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  /* A command broken across two lines is not a command you can read back. */
+  white-space: nowrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ---------- action cards ---------- */
+
+/*
+ * What the buddy did, or what it is offering to do. The two are not the same card in a
+ * different colour: an act that has happened reads in the past tense with an Undo, and one
+ * that has not reads as a verb you press. The status attribute carries which.
+ */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border-radius: 10px;
+  background: var(--cream);
+  box-shadow: inset 2px 0 0 var(--butter-deep);
+}
+
+/* Not yet done, so it is drawn as an offer: dashed, and nothing claims to have happened. */
+.card[data-status='proposed'] {
+  background: var(--cream-sunk);
+  border: 1px dashed var(--cream-line);
+  box-shadow: inset 2px 0 0 var(--blush);
+}
+
+.card[data-status='undone'],
+.card[data-status='failed'] {
+  box-shadow: inset 2px 0 0 var(--cream-line);
+  color: var(--cocoa-soft);
+}
+
+.card[data-status='undone'] .card-title {
+  text-decoration: line-through;
+}
+
+.card[data-status='failed'] {
+  box-shadow: inset 2px 0 0 var(--blush-deep);
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.card-detail {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--cocoa-soft);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A pill, not a button: it is the smaller act on the card. Undo has to be reachable
+ * without being the thing the eye lands on, because the card itself is the news.
+ */
+.card-do {
+  flex: none;
+  padding: 4px 9px;
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-pill);
+  background: var(--cream);
+  color: var(--cocoa);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-do:hover {
+  background: var(--butter);
+  border-color: var(--butter-deep);
+}
+
+/* The press an irreversible act is waiting for is the one thing on the card worth weight. */
+.card[data-status='proposed'] .card-do {
+  background: var(--butter);
+  border-color: var(--butter-deep);
+}
+
+/*
+ * The model, as a control rather than a label. Deliberately plain — it is the smallest
+ * thing on the line, because the sentence beside it is what matters.
+ */
+.engine-model {
+  max-width: 152px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cocoa);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.engine-model:hover {
+  background: var(--cream-sunk);
+}
+
+/* A cloud model is not a failure, but it is not the local promise either. */
+.engine-led[data-state='cloud'] {
+  background: oklch(70% 0.14 250);
+}

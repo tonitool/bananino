@@ -41,6 +41,9 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
     enabled: Boolean(settings.activeTimer) || settings.recentTasks.length > 0,
     click: actions.toggleTimer,
   },
+  // No accelerator: the three above earn a global key because they are things you do
+  // mid-sentence in another app. Asking a question is not one of those.
+  { label: 'Ask Bananino…', click: () => actions.openPanel('chat') },
   {
     label: 'Clipboard history',
     accelerator: DEFAULT_SHORTCUTS.clips,

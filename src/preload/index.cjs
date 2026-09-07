@@ -48,6 +48,14 @@ const IPC = {
   mocoDiscard: 'moco:discard',
   mocoCatalogue: 'moco:catalogue',
 
+  chatSend: 'chat:send',
+  chatStop: 'chat:stop',
+  chatClear: 'chat:clear',
+  chatOpened: 'chat:opened',
+  chatAct: 'chat:act',
+  chatModel: 'chat:model',
+  chatState: 'chat:state',
+
   calendarConnect: 'calendar:connect',
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
@@ -109,6 +117,14 @@ contextBridge.exposeInMainWorld('pet', {
   mocoRefresh: () => ipcRenderer.send(IPC.mocoRefresh),
   mocoDiscard: send(IPC.mocoDiscard),
   onMocoCatalogue: (handler) => subscribe(IPC.mocoCatalogue, handler),
+
+  chatSend: send(IPC.chatSend),
+  chatStop: () => ipcRenderer.send(IPC.chatStop),
+  chatClear: () => ipcRenderer.send(IPC.chatClear),
+  chatOpened: () => ipcRenderer.send(IPC.chatOpened),
+  chatAct: (payload) => ipcRenderer.send(IPC.chatAct, payload),
+  chatModel: send(IPC.chatModel),
+  onChatState: (handler) => subscribe(IPC.chatState, handler),
 
   calendarConnect: (payload) => ipcRenderer.send(IPC.calendarConnect, payload),
   calendarDisconnect: () => ipcRenderer.send(IPC.calendarDisconnect),

@@ -229,6 +229,14 @@ export const IPC = Object.freeze({
   mocoDiscard: 'moco:discard',
   mocoCatalogue: 'moco:catalogue',
 
+  chatSend: 'chat:send',
+  chatStop: 'chat:stop',
+  chatClear: 'chat:clear',
+  chatOpened: 'chat:opened',
+  chatAct: 'chat:act',
+  chatModel: 'chat:model',
+  chatState: 'chat:state',
+
   calendarConnect: 'calendar:connect',
   calendarDisconnect: 'calendar:disconnect',
   calendarJoin: 'calendar:join',
@@ -286,6 +294,26 @@ export const OLLAMA = Object.freeze({
    */
   maxModelBytes: 12_000_000_000,
   timeoutMs: 300_000,
+})
+
+/**
+ * The panel's chat. Ollama only — see src/main/chat/session.js for why there is no cloud
+ * path here even though the meeting summariser has one.
+ */
+export const CHAT = Object.freeze({
+  /*
+   * Long enough for a small model to write a paragraph on a laptop that is also running
+   * everything else, short enough that a wedged request does not leave the panel stuck
+   * mid-answer for ever.
+   */
+  timeoutMs: 120_000,
+  /*
+   * How often a streaming answer is repainted. Tokens arrive several times faster than
+   * this; 60ms still reads as typing and costs the character's animation nothing.
+   */
+  repaintMs: 60,
+  /** Longest question accepted from the panel, so a pasted document cannot be the prompt. */
+  maxQuestionLength: 4000,
 })
 
 export const OPENROUTER = Object.freeze({

@@ -22,12 +22,19 @@ import { registerShortcuts } from './shortcuts.js'
 import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
 import { createCalendarSync } from './calendar/sync.js'
+import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
 import { startUpdateNotifier } from './update/notifier.js'
 import { createNowPlaying } from './music/nowPlaying.js'
-import { appendNote, deleteNote, readDayMarkdown, readEntry } from './storage/notes.js'
+import {
+  appendNote,
+  deleteNote,
+  readDayMarkdown,
+  readEntry,
+  readNotesToday,
+} from './storage/notes.js'
 import { AI_TARGETS, buildHandoff } from './ai/handoff.js'
 import { appendManualTimeEntry } from './storage/timeLog.js'
 import { describeMinutes, parseDuration } from './storage/duration.js'
@@ -103,20 +110,25 @@ export const startApp = () => {
   const sendCatalogue = () => send(IPC.mocoCatalogue, moco.search('', 500))
   const react = (name) => send(IPC.command, { type: 'react', name })
 
+  /**
+   * The last snapshot sent to the panel, kept so the chat can describe the day without
+   * reading the day's files again. It is also the honest source: the chat then knows
+   * exactly what the panel is showing, and cannot contradict the view beside it.
+   */
+  let lastSnapshot = {}
+
   const pushSnapshot = async () => {
     if (win.isDestroyed()) return
     try {
-      send(
-        IPC.snapshot,
-        await buildSnapshot({
-          settings,
-          clips: clipboard.all(),
-          moco: { ...moco.status(), entries: moco.pendingEntries() },
-          nowPlaying: music.current(),
-          meeting: meeting.status(),
-          calendar: calendar.status(),
-        }),
-      )
+      lastSnapshot = await buildSnapshot({
+        settings,
+        clips: clipboard.all(),
+        moco: { ...moco.status(), entries: moco.pendingEntries() },
+        nowPlaying: music.current(),
+        meeting: meeting.status(),
+        calendar: calendar.status(),
+      })
+      send(IPC.snapshot, lastSnapshot)
     } catch (error) {
       console.error('[app] could not build the panel snapshot:', error)
     }
@@ -183,6 +195,31 @@ export const startApp = () => {
     },
   })
 
+  const chat = createChat({
+    getSnapshot: () => lastSnapshot,
+    onState: (state) => send(IPC.chatState, state),
+    /*
+     * Read lazily, because the chat exists before the actions it drives. Everything the
+     * buddy can do it does through these — the very same calls the panel's buttons make —
+     * so there is no path the chat can take that the UI does not already have, and a
+     * timer it starts hops and toasts exactly as a clicked one does.
+     */
+    actions: {
+      startTimer: (task, binding, description) => actions.startTimer(task, binding, description),
+      stopTimer: () => actions.stopTimer(),
+      cancelTimer: () => actions.cancelTimer(),
+      saveNote: (text) => actions.saveNote(text),
+      deleteNote: (index) => actions.deleteNote(index),
+      addManualTime: (payload) => actions.addManualTime(payload),
+      mocoPush: () => actions.mocoPush(),
+    },
+    readNotes: ({ at, limit } = {}) =>
+      readNotesToday({ dataDir: settings.dataDir, at, limit }).catch(() => []),
+    searchTasks: (query, limit) => moco.search(query, limit),
+    getModel: () => settings.chatModel,
+    setModel: (name) => saveSettings({ chatModel: name }),
+  })
+
   const timer = createTimer({
     getSettings,
     saveSettings,
@@ -193,6 +230,8 @@ export const startApp = () => {
       if (event.type === 'nudged') {
         say(`${event.minutes > 0 ? '+' : ''}${event.minutes}m — for testing`)
       }
+
+      if (event.type === 'cancelled') say(`dropped “${event.task}” — nothing logged`)
 
       if (event.type === 'discarded') {
         say(`only ${Math.round(event.seconds)}s — not logged`, 'sad')
@@ -233,7 +272,25 @@ export const startApp = () => {
       // Presence too: reveal() at startup fires long before the renderer is listening,
       // and a lost message used to leave the character at opacity 0 permanently.
       perch.notify()
+      // The thread survives the panel closing, so a reopened panel gets it back.
+      chat.start()
     },
+
+    /**
+     * The snapshot is refreshed first, on purpose: the question travels with a description
+     * of the day, and answering "is anything running?" from a snapshot built ten minutes
+     * ago is worse than not answering at all.
+     */
+    chatSend: async (text) => {
+      await pushSnapshot()
+      await chat.send(text)
+    },
+    chatStop: () => chat.stop(),
+    chatClear: () => chat.clear(),
+    chatOpened: () => chat.refresh(),
+    /** Pressing a card: the confirm an irreversible act waits for, or an Undo. */
+    chatAct: (id, choice) => chat.act(id, choice),
+    chatModel: (name) => void chat.choose(name),
 
     meetingStart: async ({ title } = {}) => {
       await meeting.start({ title })
@@ -515,6 +572,8 @@ export const startApp = () => {
     startTimer: (task, binding, description) =>
       timer.start(task, binding, description).catch(reportOnly('start the timer')),
     stopTimer: () => timer.stop().catch(reportOnly('stop the timer')),
+    /** Undo of a start: the stint is dropped rather than logged. See timer.js. */
+    cancelTimer: () => (timer.cancel(), refresh()),
     describeTimer: (text) => (timer.describe(text), void pushSnapshot()),
 
     nudgeTimer: (minutes) => {
