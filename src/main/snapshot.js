@@ -18,7 +18,7 @@ const toClipPreview = (clip) => ({
  * One object describing everything the panel renders. Pushing a whole snapshot on every
  * change keeps the renderer free of its own copy of the truth.
  */
-export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar }) => {
+export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar, version }) => {
   const { dataDir } = settings
 
   const [today, notesToday, recentNotes] = await Promise.all([
@@ -28,6 +28,8 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
   ])
 
   return {
+    // For the settings window's About pane; handed in so this module stays electron-free.
+    app: { version: version ?? null },
     timer: settings.activeTimer,
     recentTasks: settings.recentTasks,
     bindings: settings.taskBindings,

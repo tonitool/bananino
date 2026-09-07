@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { CHAT, IPC } from './constants.js'
+import { CHAT, CORNERS, DANCE_MENU, IPC, WINDOW_SIZES } from './constants.js'
 
 const asString = (value) => (typeof value === 'string' ? value : '')
 
@@ -109,6 +109,28 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.calendarJoin]: (_e, payload) => actions.calendarJoin(asString(payload?.url)),
     [IPC.calendarAcknowledge]: (_e, payload) => actions.calendarAcknowledge(asString(payload?.id)),
     [IPC.calendarSkip]: (_e, payload) => actions.calendarSkip(asString(payload?.id)),
+
+    /*
+     * Validated against the menus' own lists, not trusted: the settings window is as
+     * untrusted as every renderer, and a bad size or corner would land in the settings
+     * file it writes, poisoning every launch that follows.
+     */
+    [IPC.settingsSetSize]: (_e, key) => {
+      if (Object.hasOwn(WINDOW_SIZES, asString(key))) actions.setSize(asString(key))
+    },
+    [IPC.settingsSetCorner]: (_e, corner) => {
+      if (Object.hasOwn(CORNERS, asString(corner))) actions.setCorner(asString(corner))
+    },
+    [IPC.settingsSetAlwaysVisible]: (_e, value) => actions.setAlwaysVisible(Boolean(value)),
+    [IPC.settingsSetClipboard]: (_e, value) => actions.setCaptureClipboard(Boolean(value)),
+    [IPC.settingsSetNowPlaying]: (_e, value) => actions.setShowNowPlaying(Boolean(value)),
+    [IPC.settingsChooseFolder]: () => actions.chooseDataDir(),
+    [IPC.setDance]: (_e, name) => {
+      if (name === null) return actions.setDance(null)
+      const id = asString(name)
+      if (DANCE_MENU.some(([known]) => known === id)) actions.setDance(id)
+    },
+    [IPC.openReleases]: () => actions.openReleases(),
 
   }
 

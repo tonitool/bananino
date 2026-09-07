@@ -15,12 +15,12 @@ import {
 } from './constants.js'
 import { isInside } from './geometry.js'
 import {
-  clampToWorkArea,
+  boundsAtRest,
   cornerBounds,
   hotCornerZone,
   panelPlacement,
   panelSide,
-  windowSize,
+  restingSpotFor,
 } from './windowGeometry.js'
 
 /**
@@ -54,12 +54,33 @@ export const createPerch = ({
     const { corner, sizeKey, alwaysVisible, position } = getSettings()
     const area = workArea()
     const height = panelHeight()
-    const anchored = cornerBounds({ workArea: area, corner, sizeKey, isPanelOpen, panelHeight: height })
-    if (!alwaysVisible || !position) return anchored
+    if (!alwaysVisible || !position) {
+      return cornerBounds({ workArea: area, corner, sizeKey, isPanelOpen, panelHeight: height })
+    }
 
-    const size = windowSize({ sizeKey, isPanelOpen, panelHeight: height })
-    return { ...size, ...clampToWorkArea({ x: position[0], y: position[1] }, size, area) }
+    return boundsAtRest({
+      position,
+      placement: panelPlacement(corner),
+      workArea: area,
+      sizeKey,
+      isPanelOpen,
+      panelHeight: height,
+    })
   }
+
+  /**
+   * The window origin is not always the character's resting spot: with the panel open
+   * above, the origin sits a panel's height higher. Saved positions must always be the
+   * resting spot — see windowGeometry for why — so conversions go through here, where
+   * the panel's measured height is known.
+   */
+  const restingSpot = (origin) =>
+    restingSpotFor({
+      origin,
+      placement: panelPlacement(getSettings().corner),
+      isPanelOpen,
+      panelHeight: panelHeight(),
+    })
 
   const notify = ({ leaving = false } = {}) => {
     if (win.isDestroyed()) return
@@ -202,6 +223,7 @@ export const createPerch = ({
     reveal,
     conceal,
     applyBounds,
+    restingSpot,
     setPanelOpen,
     togglePanel: () => setPanelOpen(!isPanelOpen),
     isPanelOpen: () => isPanelOpen,

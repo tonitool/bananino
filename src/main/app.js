@@ -1,5 +1,6 @@
 import { Menu, app, dialog, session, shell } from 'electron'
 import {
+  APP_NAME,
   CALENDAR,
   CHARACTER_MENU,
   IPC,
@@ -10,6 +11,7 @@ import {
 } from './constants.js'
 import { readSettings, withRecentTask, writeSettings } from './store.js'
 import { createPetWindow } from './petWindow.js'
+import { createSettingsWindow } from './settingsWindow.js'
 import { createPerch } from './perch.js'
 import { createInteraction } from './interaction.js'
 import { startCursorTracker } from './cursorTracker.js'
@@ -51,6 +53,7 @@ import {
   maybeRunDemo,
   maybeReveal,
   maybeRunSnapshot,
+  maybeSnapshotSettings,
   maybeTap,
 } from './devTools.js'
 
@@ -76,13 +79,16 @@ export const startApp = () => {
   const saveSettings = (patch) => (settings = writeSettings(patch))
 
   const win = createPetWindow({ character: settings.character })
+  const settingsWindow = createSettingsWindow()
   // --pin-panel keeps the panel up while a screenshot is taken.
   const isPinned = () => process.argv.includes('--pin-panel')
   const interaction = createInteraction({
     win,
     // Read lazily: perch is built next and the two reference each other.
     isLocked: () => perch.isPanelOpen(),
-    onDragEnd: (position) => saveSettings({ position }),
+    // The window origin is not the resting spot while the panel hangs above the
+    // character — what is saved must be where the buddy rests, panel shut.
+    onDragEnd: (position) => saveSettings({ position: perch.restingSpot(position) }),
   })
   const perch = createPerch({ win, getSettings, saveSettings, interaction, isPinned })
 
@@ -127,8 +133,11 @@ export const startApp = () => {
         nowPlaying: music.current(),
         meeting: meeting.status(),
         calendar: calendar.status(),
+        version: app.getVersion(),
       })
       send(IPC.snapshot, lastSnapshot)
+      // The settings window reads the same truth; no-ops while it is closed.
+      settingsWindow.send(IPC.snapshot, lastSnapshot)
     } catch (error) {
       console.error('[app] could not build the panel snapshot:', error)
     }
@@ -688,6 +697,9 @@ export const startApp = () => {
 
     openUpdate: () => pendingUpdate && updates.open?.(pendingUpdate.url),
     checkForUpdates: () => updates.checkNow?.(),
+    openReleases: () =>
+      shell.openExternal(`${UPDATE_REPOSITORY}/releases`).catch(reportOnly('open the releases page')),
+    openSettings: () => settingsWindow.open(),
 
     quit: () => {
       isQuitting = true
@@ -703,6 +715,38 @@ export const startApp = () => {
     hasQueue: moco.pendingEntries().length > 0,
     update: pendingUpdate,
   }))
+
+  /*
+   * A menu-bar app still wants a real application menu, for two reasons. ⌘, opening
+   * Settings is muscle memory on a Mac, and without an Edit menu the panel's text fields
+   * lose cut/copy/paste — the standard roles restore all of it at once.
+   */
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: APP_NAME,
+        submenu: [
+          { role: 'about', label: `About ${APP_NAME}` },
+          { type: 'separator' },
+          { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: actions.openSettings },
+          { type: 'separator' },
+          { label: `Quit ${APP_NAME}`, accelerator: 'Cmd+Q', click: actions.quit },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' },
+        ],
+      },
+    ]),
+  )
 
   const updates = startUpdateNotifier({
     repositoryUrl: UPDATE_REPOSITORY,
@@ -756,7 +800,7 @@ export const startApp = () => {
 
   win.on('moved', () => {
     if (!interaction.isDragging() && settings.alwaysVisible) {
-      saveSettings({ position: win.getPosition() })
+      saveSettings({ position: perch.restingSpot(win.getPosition()) })
     }
   })
 
@@ -775,6 +819,7 @@ export const startApp = () => {
   maybeProbe(win, process.argv)
   maybeFreezeMotion(win, process.argv)
   maybeRunSnapshot(win, process.argv, actions.quit)
+  maybeSnapshotSettings(settingsWindow, process.argv, actions.quit)
   maybeRunDemo(win, process.argv, IPC.command)
 
   app.on('before-quit', () => {

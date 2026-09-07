@@ -27,6 +27,53 @@ export const maybeRunSnapshot = (win, argv, quit) => {
 
 const DEMO_FLAG = '--demo='
 
+const SETTINGS_SNAPSHOT_FLAG = '--settings-snapshot='
+
+/**
+ * `--settings-snapshot=<path>[:ms[:pane]]` opens the settings window, clicks into a pane
+ * if one is named, gives it a moment to paint, captures it (motion frozen, like
+ * --pin-panel does for the panel) and quits. The design reviewer's eyeball pass, without
+ * a screen.
+ */
+export const maybeSnapshotSettings = (settingsWindow, argv, quit) => {
+  const flag = argv.find((arg) => arg.startsWith(SETTINGS_SNAPSHOT_FLAG))
+  if (!flag) return
+
+  const [path, delayMs = '3000', pane] = flag.slice(SETTINGS_SNAPSHOT_FLAG.length).split(':')
+  const win = settingsWindow.open()
+
+  setTimeout(async () => {
+    try {
+      if (pane) {
+        const clicked = await win.webContents.executeJavaScript(`(() => {
+          const node = document.querySelector('.nav-item[data-pane=${JSON.stringify(pane)}]')
+          if (!node) return 'not found among ' + document.querySelectorAll('.nav-item').length + ' nav items'
+          node.click()
+          return 'clicked: ' + document.querySelector('.pane-title')?.textContent
+        })()`)
+        console.log('[settings-snapshot]', clicked)
+      }
+      await win.webContents.executeJavaScript(
+        'document.documentElement.setAttribute("data-no-motion", "")',
+      )
+      // Occluded windows stop compositing on macOS, which captures the frame from before
+      // any change. Lift the window out from behind and give the compositor two frames.
+      win.moveTop()
+      win.focus()
+      await win.webContents.executeJavaScript(
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+      )
+      const image = await win.webContents.capturePage()
+      await writeFile(path, image.toPNG())
+      console.log('[settings-snapshot]', path)
+    } catch (error) {
+      console.error('[settings-snapshot] failed:', error.message)
+    } finally {
+      quit()
+    }
+  }, Number(delayMs))
+}
+
 /** Fires one reaction on launch so a single pose can be inspected in a snapshot. */
 export const maybeRunDemo = (win, argv, channel) => {
   const flag = argv.find((arg) => arg.startsWith(DEMO_FLAG))

@@ -51,9 +51,9 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
     click: () => actions.openPanel('clips'),
   },
   { type: 'separator' },
-  // Opens the panel's settings view rather than repeating it as a submenu: choosing a
-  // character is a look-at-it decision, and the cards show which one is loading.
-  { label: 'Settings…', click: () => actions.openPanel('settings') },
+  // Its own window, as on every Mac app — the same one ⌘, opens. Not a submenu: the
+  // settings have long outgrown what a menu can say.
+  { label: 'Settings…', accelerator: 'CmdOrCtrl+,', registerAccelerator: false, click: () => actions.openSettings() },
   {
     label: 'Costume',
     submenu: COSTUME_MENU.map(([name, label]) => ({

@@ -9,7 +9,6 @@ import { GARMENTS, loadPolo } from './scene/garments.js'
 import { loadLogos } from './scene/fabric.js'
 import { LOOKS, lookId, lookLogoFiles } from './scene/looks.js'
 import { createRack } from './scene/rack.js'
-import { randomDance } from './animation/dances.js'
 import { createAlphaHitTester } from './interaction/alphaHitTest.js'
 import { createPointerController } from './interaction/pointer.js'
 import { createSpeechBubble } from './ui/speechBubble.js'
@@ -176,11 +175,6 @@ async function boot() {
     })
   }
 
-  const toggleDance = () => {
-    state = withDance(state, state.dance ? null : randomDance())
-    paintPanel()
-  }
-
   const panel = createPanel({
     actions: {
       startMeeting: (payload) => bridge.startMeeting(payload),
@@ -226,7 +220,6 @@ async function boot() {
         bridge.setLook(look)
         paintPanel()
       },
-      toggleDance,
       setCharacter: (id) => {
         // Persisted first, swapped as the model arrives: the store is what the next
         // launch reads, and the load is far too slow to hold the click on.

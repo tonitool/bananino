@@ -243,6 +243,19 @@ export const IPC = Object.freeze({
   calendarRefresh: 'calendar:refresh',
   calendarAcknowledge: 'calendar:acknowledge',
   calendarSkip: 'calendar:skip',
+
+  /*
+   * The standalone settings window. The character menu and the pet panel's settings view
+   * used to be the only way in; the window drives the very same actions over these.
+   */
+  settingsSetSize: 'settings:set-size',
+  settingsSetCorner: 'settings:set-corner',
+  settingsSetAlwaysVisible: 'settings:set-always-visible',
+  settingsSetClipboard: 'settings:set-capture-clips',
+  settingsSetNowPlaying: 'settings:set-now-playing',
+  settingsChooseFolder: 'settings:choose-folder',
+  setDance: 'dance:set',
+  openReleases: 'app:open-releases',
 })
 
 /*
@@ -278,7 +291,14 @@ export const WHISPER = Object.freeze({
 })
 
 export const OLLAMA = Object.freeze({
-  url: process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434',
+  /*
+   * A getter, not a value read at import: `process` does not exist in a browser bundle,
+   * and the settings window imports this module's menus. Laziness keeps the shared
+   * module loadable on both sides — only main-process code ever touches `url`.
+   */
+  get url() {
+    return process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434'
+  },
   /*
    * Whatever the user already has, in rough order of how well it summarises. Pinning one
    * model would tell most people to download a second copy of something they already

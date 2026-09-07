@@ -62,6 +62,15 @@ const IPC = {
   calendarRefresh: 'calendar:refresh',
   calendarAcknowledge: 'calendar:acknowledge',
   calendarSkip: 'calendar:skip',
+
+  settingsSetSize: 'settings:set-size',
+  settingsSetCorner: 'settings:set-corner',
+  settingsSetAlwaysVisible: 'settings:set-always-visible',
+  settingsSetClipboard: 'settings:set-capture-clips',
+  settingsSetNowPlaying: 'settings:set-now-playing',
+  settingsChooseFolder: 'settings:choose-folder',
+  setDance: 'dance:set',
+  openReleases: 'app:open-releases',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -132,6 +141,16 @@ contextBridge.exposeInMainWorld('pet', {
   calendarRefresh: () => ipcRenderer.send(IPC.calendarRefresh),
   calendarAcknowledge: send(IPC.calendarAcknowledge),
   calendarSkip: send(IPC.calendarSkip),
+
+  /* The standalone settings window. */
+  setSize: send(IPC.settingsSetSize),
+  setCorner: send(IPC.settingsSetCorner),
+  setAlwaysVisible: (value) => ipcRenderer.send(IPC.settingsSetAlwaysVisible, Boolean(value)),
+  setCaptureClipboard: (value) => ipcRenderer.send(IPC.settingsSetClipboard, Boolean(value)),
+  setShowNowPlaying: (value) => ipcRenderer.send(IPC.settingsSetNowPlaying, Boolean(value)),
+  chooseDataFolder: () => ipcRenderer.send(IPC.settingsChooseFolder),
+  setDance: (name) => ipcRenderer.send(IPC.setDance, name ?? null),
+  openReleases: () => ipcRenderer.send(IPC.openReleases),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),

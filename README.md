@@ -98,6 +98,15 @@ npm run verify:signature
 Notarization is the slow part — a few minutes at Apple, on top of the build. `npm run
 dist` on its own skips both and produces the ad-hoc app, so day-to-day work is unaffected.
 
+If you would rather not export secrets per shell, the three notarytool credentials can live
+in the keychain once:
+
+```bash
+xcrun notarytool store-credentials bananino-notary \
+  --apple-id 'you@example.com' --team-id '6R7VM3W44A' --password 'xxxx-xxxx-xxxx-xxxx'
+APPLE_KEYCHAIN_PROFILE=bananino-notary npm run dist -- --config.mac.notarize=true
+```
+
 The release workflow signs when — and only when — the certificate and all three
 notarytool credentials below are set on the repository. Half of them is no better than
 none, because an app that is signed but not notarized is still blocked on first launch, so
@@ -165,8 +174,9 @@ breaks. They are listed in the menu bar icon's menu too.
 One view at a time — **Time · Note · Clips · Meet · Cal** — because a single screen holding
 all of them left every part too small, and overlapping whenever one grew. A running timer is
 the one thing shown on every view, as a slim strip you can click to jump back to Time.
-**Settings** is a sixth view without a tab: right-click the character → **Settings…**, and
-**Done** puts you back on the view you came from.
+**Settings** is not a view at all but its own window — right-click the character →
+**Settings…** (or `⌘,`), like every Mac app — with Buddy, Wardrobe, Behaviour, Files and
+About in the sidebar.
 
 **Time** is the timer and its MOCO status. Recent tasks are one-tap chips; typing at least
 two letters searches your MOCO projects. While a timer runs there is a **description**

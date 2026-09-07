@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  boundsAtRest,
   clampToWorkArea,
   cornerBounds,
   hotCornerZone,
   panelPlacement,
+  restingSpotFor,
   windowSize,
 } from '../src/main/windowGeometry.js'
 import { CORNERS, PANEL, SCREEN_MARGIN, WINDOW_SIZES } from '../src/main/constants.js'
@@ -81,4 +83,58 @@ test('clamping keeps a window fully inside the work area', () => {
   const size = { width: 300, height: 300 }
   assert.deepEqual(clampToWorkArea({ x: -80, y: -80 }, size, workArea), { x: 0, y: 25 })
   assert.deepEqual(clampToWorkArea({ x: 9999, y: 9999 }, size, workArea), { x: 1212, y: 645 })
+})
+
+test('a parked character does not move when the panel opens above it', () => {
+  // Regression: always-visible mode reused the resting origin for the taller open
+  // window, so the buddy slid down a panel's height on open and back up on close.
+  const rest = [600, 400]
+  const sizeKey = 'medium'
+  const character = WINDOW_SIZES[sizeKey]
+
+  const closed = boundsAtRest({ position: rest, placement: 'above', workArea, sizeKey, isPanelOpen: false })
+  const open = boundsAtRest({
+    position: rest, placement: 'above', workArea, sizeKey, isPanelOpen: true, panelHeight: 400,
+  })
+
+  // The character is pinned to the window's bottom edge when the panel hangs above it,
+  // so its bottom edge is its home. The panel's arrival must not move it.
+  assert.equal(open.x, closed.x)
+  assert.equal(open.y + open.height, closed.y + closed.height)
+  assert.equal(closed.y, rest[1])
+  assert.equal(closed.height, character)
+})
+
+test('a parked character does not move when the panel opens below it', () => {
+  // Pinned to the top edge, the window origin is the character's spot already.
+  const rest = [600, 200]
+  const closed = boundsAtRest({ position: rest, placement: 'below', workArea, sizeKey: 'medium', isPanelOpen: false })
+  const open = boundsAtRest({
+    position: rest, placement: 'below', workArea, sizeKey: 'medium', isPanelOpen: true, panelHeight: 400,
+  })
+
+  assert.equal(open.x, closed.x)
+  assert.equal(open.y, closed.y)
+})
+
+test('restingSpotFor inverts boundsAtRest, so a drag with the panel open still remembers the resting spot', () => {
+  const rest = [600, 400]
+  const open = boundsAtRest({
+    position: rest, placement: 'above', workArea, sizeKey: 'medium', isPanelOpen: true, panelHeight: 400,
+  })
+
+  assert.deepEqual(
+    restingSpotFor({ origin: [open.x, open.y], placement: 'above', isPanelOpen: true, panelHeight: 400 }),
+    rest,
+  )
+  // With the panel closed the two agree trivially — no growth to undo.
+  assert.deepEqual(
+    restingSpotFor({ origin: rest, placement: 'above', isPanelOpen: false, panelHeight: 400 }),
+    rest,
+  )
+  // Panels below the character never shift the origin, either way.
+  assert.deepEqual(
+    restingSpotFor({ origin: [600, 200], placement: 'below', isPanelOpen: true, panelHeight: 400 }),
+    [600, 200],
+  )
 })

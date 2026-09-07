@@ -8,7 +8,6 @@ import { createRunningStrip } from './runningStrip.js'
 import { createUpcomingStrip } from './upcomingStrip.js'
 import { createCalendarTab } from './calendarTab.js'
 import { createManualEntry } from './manualEntry.js'
-import { createSettingsTab } from './settingsTab.js'
 import { createChatTab } from './chatTab.js'
 import { createRail } from './rail.js'
 import { formatMinutes } from '../format.js'
@@ -38,13 +37,6 @@ const DESTINATIONS = [
  * thread when the timer is the thing you open the panel for.
  */
 const HOME = 'time'
-
-/**
- * Settings is a view without a destination: it is reached from the right-click menu, and
- * while it is showing the rail steps aside — a rail with nothing selected reads as broken,
- * and a seventh glyph for something used once a month is not worth the room.
- */
-const SETTINGS = 'settings'
 
 /**
  * The panel itself: a timer strip that is always in reach, and one tab for writing notes
@@ -179,15 +171,6 @@ export const createPanel = ({ actions }) => {
     onRefresh: () => actions.calendarRefresh(),
   })
 
-  const settings = createSettingsTab({
-    onCharacter: (id) => actions.setCharacter(id),
-    onCostume: (name) => actions.setCostume(name),
-    onShirt: (name) => actions.setShirt(name),
-    onLook: (id) => actions.setLook(id),
-    onDance: () => actions.toggleDance(),
-    onClose: () => focusTab(lastTab),
-  })
-
   const chat = createChatTab({
     onSend: (text) => actions.chatSend(text),
     onStop: () => actions.chatStop(),
@@ -196,10 +179,8 @@ export const createPanel = ({ actions }) => {
     onModel: (name) => actions.chatModel(name),
   })
 
-  const panels = { chat, time, note, clips, meet, calendar, settings }
+  const panels = { chat, time, note, clips, meet, calendar }
   let activeTab = HOME
-  /** Where Done goes back to, so settings never strands you on a view you did not pick. */
-  let lastTab = HOME
 
   const rail = createRail({ destinations: DESTINATIONS, onFocus: (id) => focusTab(id) })
 
@@ -230,7 +211,6 @@ export const createPanel = ({ actions }) => {
     clips.root,
     meet.root,
     calendar.root,
-    settings.root,
     el('footer', { class: 'panel-footer' }, [
       mocoDot,
       summary,
@@ -246,7 +226,6 @@ export const createPanel = ({ actions }) => {
   /** Unknown ids fall back rather than blanking the panel. */
   function focusTab(requested) {
     const id = Object.hasOwn(panels, requested) ? requested : HOME
-    if (activeTab !== SETTINGS) lastTab = activeTab
     activeTab = id
 
     offerChat()
@@ -254,7 +233,6 @@ export const createPanel = ({ actions }) => {
     for (const [panelId, view] of Object.entries(panels)) {
       setHidden(view.root, panelId !== id)
     }
-    setHidden(rail.root, id === SETTINGS)
 
     // A model started after launch is found when you go looking for the chat.
     if (id === 'chat') actions.chatOpened()
@@ -289,7 +267,6 @@ export const createPanel = ({ actions }) => {
     clips.update(snapshot)
     meet.update(snapshot)
     calendar.update(snapshot)
-    settings.update(snapshot)
 
     const { today } = snapshot
     summary.textContent = `${formatMinutes(today.minutes)} tracked · ${today.notes} ${
