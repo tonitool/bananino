@@ -22,6 +22,7 @@ test('every controller the actions close over is actually created', async () => 
     ['calendar', 'createCalendarSync'],
     ['clipboard', 'createClipboardWatcher'],
     ['mic', 'createMicBridge'],
+    ['chat', 'createChat'],
   ]) {
     const created = source.includes(`const ${binding} = ${factory}(`)
     assert.ok(created, `app.js uses ${binding}.* in actions but never runs ${factory}()`)
@@ -33,7 +34,9 @@ test('the actions object never references an undeclared variable by the usual na
   const actionsBody = source.slice(source.indexOf('const actions = {'))
 
   // Position does not matter — closures resolve at call time — only existence does.
-  for (const used of ['timer', 'moco', 'meeting', 'music', 'calendar', 'clipboard', 'perch', 'tray', 'mic']) {
+  for (const used of [
+    'timer', 'moco', 'meeting', 'music', 'calendar', 'clipboard', 'perch', 'tray', 'mic', 'chat',
+  ]) {
     if (!new RegExp(`\\b${used}\\.`).test(actionsBody)) continue
     const declared = new RegExp(`const ${used} =`).test(source)
     assert.ok(declared, `actions use ${used}.* but no \`const ${used} =\` exists anywhere`)

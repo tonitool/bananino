@@ -68,6 +68,81 @@ export const checkOllama = async () => {
 }
 
 /**
+ * The visible part of a partly-streamed answer.
+ *
+ * `stripThinking` only removes a closed `<think>` block, which is right for a finished
+ * answer and wrong mid-stream: while the model is still reasoning the opening tag has no
+ * partner yet, and the scratchpad would stream straight into the panel. So an unclosed
+ * block is treated as running to the end of what has arrived so far.
+ */
+export const visibleSoFar = (text) =>
+  stripThinking(text.replace(/<think>(?![\s\S]*<\/think>)[\s\S]*$/i, ''))
+
+/**
+ * A streamed chat turn, for a conversation rather than a summary.
+ *
+ * `ask` below waits for the whole answer, which is the right shape for writing up a
+ * meeting — nobody watches that happen. In a chat it is the wrong shape entirely: a local
+ * model takes seconds to finish a paragraph, and a panel that shows nothing for those
+ * seconds reads as broken. So the tokens arrive as they are generated.
+ *
+ * `onText` is handed the whole visible answer so far, not the newest fragment. Callers
+ * therefore never have to reassemble it, and dropping a reasoning scratchpad — which can
+ * only be judged from the text around it — stays this function's problem.
+ */
+export const streamChat = async ({ model, messages, signal, onText }) => {
+  const response = await fetch(`${OLLAMA.url}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body: JSON.stringify({
+      model,
+      stream: true,
+      think: false,
+      options: { temperature: 0.4 },
+      messages,
+    }),
+  })
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new LlmUnavailable(`Ollama returned HTTP ${response.status}. ${detail}`.trim())
+  }
+
+  /*
+   * Newline-delimited JSON, one object per token, and a chunk can split a line in half —
+   * so the tail is held back until its newline arrives rather than parsed hopefully.
+   */
+  const decoder = new TextDecoder()
+  let pending = ''
+  let answer = ''
+
+  for await (const chunk of response.body) {
+    pending += decoder.decode(chunk, { stream: true })
+    const lines = pending.split('\n')
+    pending = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (!line.trim()) continue
+      let event
+      try {
+        event = JSON.parse(line)
+      } catch {
+        // A malformed line is not worth failing a whole answer over.
+        continue
+      }
+      if (event.error) throw new LlmUnavailable(event.error)
+      if (event.message?.content) {
+        answer += event.message.content
+        onText?.(visibleSoFar(answer))
+      }
+    }
+  }
+
+  return visibleSoFar(answer)
+}
+
+/**
  * One non-streaming chat turn. Everything here runs on the machine that recorded the
  * meeting, which is the whole point — the transcript never leaves it.
  */

@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC } from './constants.js'
+import { CHAT, IPC } from './constants.js'
 
 const asString = (value) => (typeof value === 'string' ? value : '')
 
@@ -85,6 +85,15 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.mocoPush]: () => actions.mocoPush(),
     [IPC.mocoRefresh]: () => actions.mocoRefresh(),
     [IPC.mocoDiscard]: (_e, id) => actions.mocoDiscard(asString(id)),
+
+    /*
+     * Length-capped here rather than in the view: the renderer is the untrusted side, and
+     * a 40 MB paste arriving as a prompt is a hang, not a question.
+     */
+    [IPC.chatSend]: (_e, text) => actions.chatSend(asString(text).slice(0, CHAT.maxQuestionLength)),
+    [IPC.chatStop]: () => actions.chatStop(),
+    [IPC.chatClear]: () => actions.chatClear(),
+    [IPC.chatOpened]: () => actions.chatOpened(),
 
     [IPC.calendarConnect]: (_e, payload) =>
       actions.calendarConnect({ feedUrl: asString(payload?.feedUrl) }),

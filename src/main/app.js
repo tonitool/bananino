@@ -22,6 +22,7 @@ import { registerShortcuts } from './shortcuts.js'
 import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
 import { createCalendarSync } from './calendar/sync.js'
+import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
@@ -103,20 +104,25 @@ export const startApp = () => {
   const sendCatalogue = () => send(IPC.mocoCatalogue, moco.search('', 500))
   const react = (name) => send(IPC.command, { type: 'react', name })
 
+  /**
+   * The last snapshot sent to the panel, kept so the chat can describe the day without
+   * reading the day's files again. It is also the honest source: the chat then knows
+   * exactly what the panel is showing, and cannot contradict the view beside it.
+   */
+  let lastSnapshot = {}
+
   const pushSnapshot = async () => {
     if (win.isDestroyed()) return
     try {
-      send(
-        IPC.snapshot,
-        await buildSnapshot({
-          settings,
-          clips: clipboard.all(),
-          moco: { ...moco.status(), entries: moco.pendingEntries() },
-          nowPlaying: music.current(),
-          meeting: meeting.status(),
-          calendar: calendar.status(),
-        }),
-      )
+      lastSnapshot = await buildSnapshot({
+        settings,
+        clips: clipboard.all(),
+        moco: { ...moco.status(), entries: moco.pendingEntries() },
+        nowPlaying: music.current(),
+        meeting: meeting.status(),
+        calendar: calendar.status(),
+      })
+      send(IPC.snapshot, lastSnapshot)
     } catch (error) {
       console.error('[app] could not build the panel snapshot:', error)
     }
@@ -183,6 +189,11 @@ export const startApp = () => {
     },
   })
 
+  const chat = createChat({
+    getSnapshot: () => lastSnapshot,
+    onState: (state) => send(IPC.chatState, state),
+  })
+
   const timer = createTimer({
     getSettings,
     saveSettings,
@@ -233,7 +244,22 @@ export const startApp = () => {
       // Presence too: reveal() at startup fires long before the renderer is listening,
       // and a lost message used to leave the character at opacity 0 permanently.
       perch.notify()
+      // The thread survives the panel closing, so a reopened panel gets it back.
+      chat.start()
     },
+
+    /**
+     * The snapshot is refreshed first, on purpose: the question travels with a description
+     * of the day, and answering "is anything running?" from a snapshot built ten minutes
+     * ago is worse than not answering at all.
+     */
+    chatSend: async (text) => {
+      await pushSnapshot()
+      await chat.send(text)
+    },
+    chatStop: () => chat.stop(),
+    chatClear: () => chat.clear(),
+    chatOpened: () => chat.refresh(),
 
     meetingStart: async ({ title } = {}) => {
       await meeting.start({ title })

@@ -1,0 +1,131 @@
+/* ---------- chat ---------- */
+
+/*
+ * The transcript scrolls inside itself, and that is load-bearing rather than tidy. The
+ * panel reports its own height and the window is resized to match, so a thread laid out in
+ * the normal flow would grow the window with every answer until it walked off the screen —
+ * exactly the bug the task search had, where a list that added no height left the window
+ * too short to show it.
+ */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* About a paragraph and a reply: enough to read in, short enough to leave the composer
+     and the character where they were. */
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 2px;
+  /* The scroll container is the one place in the panel where text is worth selecting. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.thread[hidden] {
+  display: none;
+}
+
+.thread-empty {
+  padding: 14px 12px;
+  border: 1px dashed var(--cream-line);
+  border-radius: var(--radius-card);
+  color: var(--cocoa-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 7px 10px;
+  border-radius: 13px;
+  font-size: var(--text-sm);
+  line-height: 1.42;
+}
+
+/* You on the right in butter, the buddy on the left in cream: the arrangement every
+   messaging app on this machine already taught the user. */
+.bubble[data-role='user'] {
+  align-self: flex-end;
+  background: var(--butter);
+  border-bottom-right-radius: 5px;
+}
+
+.bubble[data-role='assistant'] {
+  align-self: flex-start;
+  background: var(--cream-sunk);
+  border-bottom-left-radius: 5px;
+}
+
+/* A failure is a message, not a red panel: it says what went wrong and stays out of the
+   way of the conversation around it. */
+.bubble[data-failed='true'] {
+  background: oklch(72% 0.16 25 / 0.1);
+  box-shadow: inset 2px 0 0 var(--blush-deep);
+}
+
+.bubble[data-waiting='true'] .bubble-text {
+  color: var(--cocoa-soft);
+  letter-spacing: 0.12em;
+}
+
+.bubble-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Holds the left end of the composer row so Send can stay pinned to the right. */
+.chat-clear {
+  margin-right: auto;
+}
+
+.chat-input {
+  min-height: 0;
+  padding: 9px 11px;
+  font-size: var(--text-sm);
+}
+
+/*
+ * Who is answering, on screen at all times. The meeting tab makes the same promise about
+ * a transcript in the same words, and for the same reason: where your sentences go is not
+ * something to leave to a settings page.
+ */
+.engine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--cocoa-soft);
+}
+
+.engine-led {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: oklch(72% 0.16 145);
+}
+
+.engine-led[data-state='off'] {
+  background: var(--blush-deep);
+}
+
+.engine-led[data-state='checking'] {
+  background: var(--butter-deep);
+}
+
+.engine-text {
+  min-width: 0;
+}
+
+/* The command that fixes it, in the shape of a command. */
+.engine-hint {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--cream-sunk);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  /* A command broken across two lines is not a command you can read back. */
+  white-space: nowrap;
+  user-select: text;
+  -webkit-user-select: text;
+}

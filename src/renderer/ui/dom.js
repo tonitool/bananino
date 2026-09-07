@@ -26,6 +26,38 @@ export const el = (tag, props = {}, children = []) => {
   return node
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/**
+ * A stroked 24x24 glyph, built from `[tag, attributes]` pairs.
+ *
+ * SVG children have to be created in their own namespace: an element made with
+ * createElement lands in the HTML namespace and draws absolutely nothing, without a
+ * warning anywhere — which is a poor way to lose an icon. Hence a separate factory
+ * rather than a special case inside `el`.
+ */
+export const svgIcon = (shapes) => {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  for (const [name, value] of Object.entries({
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '1.9',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+    'aria-hidden': 'true',
+  })) {
+    svg.setAttribute(name, value)
+  }
+
+  for (const [tag, attributes] of shapes) {
+    const shape = document.createElementNS(SVG_NS, tag)
+    for (const [name, value] of Object.entries(attributes)) shape.setAttribute(name, String(value))
+    svg.append(shape)
+  }
+  return svg
+}
+
 export const clear = (node) => {
   node.replaceChildren()
   return node
