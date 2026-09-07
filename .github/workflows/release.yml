@@ -97,6 +97,41 @@ jobs:
               >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Whether this run can produce a signed app, decided once for the same reason.
+      #
+      # Signing needs a Developer ID certificate *and* notarytool credentials — a signed
+      # but un-notarized app is still blocked on first launch, so half the secrets is no
+      # better than none. Without all of them the run still builds: it just produces the
+      # same ad-hoc-signed app as `npm run dist` on a laptop, so a fork, or a clone with
+      # no secrets, is never blocked on credentials somebody else holds.
+      #
+      # Secrets cannot be read in an `if:`, hence a step that turns them into outputs.
+      - name: Decide whether this run can sign
+        id: sign
+        env:
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] \
+            && [ -n "$APPLE_TEAM_ID" ]; then
+            signing=true
+            # Notarization is off by default in package.json so that `npm run dist` on a
+            # machine with no credentials still works; a run that has them opts in.
+            args='--config.mac.notarize=true'
+            echo 'Signed with a Developer ID and notarized.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            signing=false
+            args=''
+            echo 'Not signed: this repository has no Apple credentials, so the app is' \
+              'ad-hoc signed and needs `xattr -dr com.apple.quarantine` on first launch.' \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "signing=$signing" >> "$GITHUB_OUTPUT"
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+
       # Only a tag push arrives with a tag; the other two make one before anything is
       # built. Refusing a tag that already exists is what stops a second run quietly
       # re-cutting a version that has already shipped.
@@ -135,7 +170,13 @@ jobs:
       # public, so a manual run can check a build without littering drafts.
       - name: Build and package
         if: steps.run.outputs.releasing != 'true'
-        run: npm run dist
+        env:
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run dist -- ${{ steps.sign.outputs.args }}
 
       # Uploads into a *draft* release — see build.publish in package.json. Publishing
       # straight to a live release is what broke 1.1.0: electron-builder runs one publisher
@@ -146,7 +187,47 @@ jobs:
         if: steps.run.outputs.releasing == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run release -- ${{ steps.sign.outputs.args }}
+
+      # A silently unsigned release is the failure worth guarding against: electron-builder
+      # only *warns* when it cannot find a certificate, so a mistyped secret would sail
+      # through a green run and land as a download macOS blocks — the exact thing signing
+      # was meant to fix. Every claim is checked against the bundle rather than assumed.
+      - name: Check the app is really signed and notarized
+        if: steps.sign.outputs.signing == 'true'
+        run: |
+          app='release/mac-arm64/Bananino.app'
+
+          # The seal matches the contents, all the way down.
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+          # Signed by us, not ad-hoc: an ad-hoc signature passes --verify quite happily.
+          codesign --display --verbose=2 "$app" 2>&1 | tee /tmp/codesign.txt
+          grep -q 'Authority=Developer ID Application' /tmp/codesign.txt \
+            || { echo 'not signed with a Developer ID'; exit 1; }
+          grep -q 'flags=.*runtime' /tmp/codesign.txt \
+            || { echo 'the hardened runtime is not on — notarization would be rejected'; exit 1; }
+
+          # The two native helpers live outside the asar, so they are signed separately by
+          # electron-builder and are the likeliest thing to be missed.
+          for helper in "$app"/Contents/Resources/bin/*; do
+            codesign --verify --strict --verbose=2 "$helper"
+            codesign --display --verbose=2 "$helper" 2>&1 \
+              | grep -q 'Authority=Developer ID Application' \
+              || { echo "$helper is not signed with a Developer ID"; exit 1; }
+          done
+
+          # Notarized *and* stapled: without the ticket the app needs the network to pass
+          # Gatekeeper, and fails on a machine that is offline on first launch.
+          xcrun stapler validate "$app"
+
+          # What the user's Mac will decide, asked the same way it asks.
+          spctl --assess --type exec --verbose=4 "$app"
 
       # electron-builder drops some extensions by default, which once shipped an app with
       # a missing prop while the dev build looked perfect. The characters go the same way.

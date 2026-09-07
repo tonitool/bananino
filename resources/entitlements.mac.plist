@@ -9,5 +9,20 @@
     <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+
+    <!--
+      The three below only start to matter once the app is signed with a Developer ID:
+      an ad-hoc signature is not subject to the hardened runtime's resource restrictions,
+      so the app worked without them and would have broken the moment it was signed for
+      real. Each one is the entitlement for a thing the app already does.
+    -->
+
+    <!-- Recording a meeting: the microphone, and the Core Audio tap on system output. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Asking Music and Spotify what is playing, via osascript — see src/main/music. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
   </dict>
 </plist>

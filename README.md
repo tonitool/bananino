@@ -11,17 +11,19 @@ and **clipboard history**. Everything is stored as plain files on your own disk.
 1. Download `Bananino-*-arm64.dmg` from
    [**Releases**](https://github.com/tonitool/bananino/releases).
 2. Open the DMG and drag **Bananino** into **Applications**.
-3. The app is unsigned, so macOS blocks the first launch. Clear the browser's
-   quarantine flag once in Terminal, then it launches normally for good:
+3. Open it. Releases are signed with a Developer ID and notarized by Apple, so
+   it launches on a double-click with nothing to clear first.
+
+   **1.2.0 and earlier were not signed**, and macOS blocks their first launch. If
+   you have one of those and got **"damaged"** or **"Apple could not verify…
+   malware"**, press **Done** (never Move to Bin), then clear the quarantine flag
+   the browser attached:
 
    ```bash
    xattr -dr com.apple.quarantine /Applications/Bananino.app
    ```
 
-   If you already double-clicked and got **"damaged"** or **"Apple could not
-   verify…malware"**, press **Done** (never Move to Bin), then either run the
-   command above or go to **System Settings → Privacy & Security**, scroll to
-   the Security section, and click **Open Anyway** next to Bananino.
+   Upgrading to a signed release is the better fix — it needs none of this.
 4. Optional: add it under **System Settings → General → Login Items** so it
    starts with your Mac.
 
@@ -48,8 +50,10 @@ npm run dist
 Produces `release/mac-arm64/Bananino.app`. Drag it to `/Applications`, then add it under
 **System Settings → General → Login Items** to have it there at startup.
 
-It is unsigned, so the first launch needs a right-click → **Open** (or
-`xattr -dr com.apple.quarantine /Applications/Bananino.app`).
+A build from source is signed ad-hoc unless you have a Developer ID certificate in your
+keychain, so the first launch needs a right-click → **Open** (or `xattr -dr
+com.apple.quarantine /Applications/Bananino.app`). Nothing in the app depends on being
+signed — see [Signing and notarization](#signing-and-notarization) for what does.
 
 ## Cutting a release
 
@@ -68,6 +72,45 @@ publishing anything — electron-builder publishes to the version, not the tag, 
 disagreeing means the download does not say what the tag says.
 
 `npm run release` does the same thing locally, on a Mac.
+
+### Signing and notarization
+
+Released apps are signed with a **Developer ID Application** certificate and notarized by
+Apple, which is what lets a download open on a double-click instead of being reported as
+damaged. Neither happens locally by default: a contributor with no Apple membership can
+still run `npm run dist`, and gets the ad-hoc-signed app described above.
+
+The release workflow signs when — and only when — all four secrets below are set on the
+repository. Half of them is no better than none, because an app that is signed but not
+notarized is still blocked on first launch, so the workflow checks for the whole set and
+otherwise builds unsigned rather than failing.
+
+| Secret | What it is |
+| --- | --- |
+| `APPLE_CERTIFICATE_P12` | the Developer ID Application certificate and its private key, exported from Keychain Access as a `.p12` and base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `APPLE_CERTIFICATE_PASSWORD` | the password set when exporting that `.p12` |
+| `APPLE_ID` | the Apple ID of an account on the developer team |
+| `APPLE_APP_SPECIFIC_PASSWORD` | an app-specific password for that Apple ID, from [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security — *not* the account password |
+| `APPLE_TEAM_ID` | the ten-character Team ID from the [membership details](https://developer.apple.com/account) |
+
+electron-builder reads the first two as `CSC_LINK` and `CSC_KEY_PASSWORD`, and hands the
+rest to `notarytool`. Notarization is switched on by the workflow rather than by
+`package.json` (`--config.mac.notarize=true`), so a build without credentials never tries
+to notarize and fail.
+
+A signed run then checks the bundle rather than trusting the log, because electron-builder
+only *warns* when it cannot find a certificate: a mistyped secret would otherwise pass a
+green run and land as a download macOS refuses. It asserts a Developer ID authority (an
+ad-hoc signature passes `codesign --verify` perfectly well), the hardened runtime flag, a
+Developer ID on both native helpers in `Contents/Resources/bin` — they sit outside the
+asar and are signed separately — a stapled notarization ticket, and finally `spctl
+--assess`, which is the question the user's Mac will ask.
+
+Two entitlements in [entitlements.mac.plist](resources/entitlements.mac.plist) exist only
+because of this: the hardened runtime does not restrict an ad-hoc-signed app, so
+`com.apple.security.device.audio-input` (meeting recording) and
+`com.apple.security.automation.apple-events` (asking Music and Spotify what is playing)
+were not needed until the day the app was signed for real.
 
 ## Waking it up
 

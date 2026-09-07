@@ -67,7 +67,6 @@
           ]
         }
       ],
-      "identity": null,
       "extendInfo": {
         "LSUIElement": true,
         "NSAppleEventsUsageDescription": "Bananino asks Music and Spotify what is playing, so it can show the track on your desktop.",
