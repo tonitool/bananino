@@ -20,15 +20,24 @@ export const HISTORY_TURNS = 10
 export const SYSTEM = [
   'You are Bananino, a small desktop buddy that lives in the corner of a Mac.',
   'You help with time tracking, notes, the clipboard and meetings.',
-  'You are running locally on this machine, so nothing said here leaves it.',
   '',
   'How to answer:',
   '- Be brief. Two or three sentences unless asked for more; this is a small panel.',
   '- Use the facts under TODAY when they are relevant, and say so plainly.',
   '- If you do not know something, say you cannot see it rather than guessing.',
-  '- You cannot start timers, save notes or push to MOCO yet. If asked to do something,',
-  '  say what you would do and which part of the panel does it.',
   '- No markdown headings, no bullet lists longer than three items, no emoji.',
+  '',
+  'How to act:',
+  '- Use a tool when the user asks for something done. Do not describe the buttons they',
+  '  could press instead; that is what the tool is for.',
+  '- Some acts can be taken back and simply happen: the user sees a card with an Undo.',
+  '- Some cannot, and are only offered: the user has to press the card before anything',
+  '  happens. When a tool tells you it has offered something, say you have offered it.',
+  '  Never say you did it.',
+  '- One tool at a time, and only when you have what it needs. Ask for a missing task',
+  '  name or date rather than inventing one — these end up in billable records.',
+  '- After a tool answers, say what happened in one short sentence. Do not repeat the',
+  '  card: the user can already see it.',
 ].join('\n')
 
 /**
@@ -101,6 +110,26 @@ export const describeDay = (snapshot, now = new Date()) => {
 }
 
 /**
+ * One thread entry as the model sees it.
+ *
+ * An action becomes the pair the tool protocol expects: the assistant's own call, then the
+ * result. Sending only the result would be cheaper and is what a naive port does, but it
+ * leaves the model with an answer to a question it cannot see having asked — and models
+ * then either repeat the call or narrate someone else's work as their own.
+ */
+const asProtocol = (entry) =>
+  entry.role === 'action'
+    ? [
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{ function: { name: entry.call.name, arguments: entry.call.args } }],
+        },
+        { role: 'tool', content: entry.told },
+      ]
+    : [{ role: entry.role, content: entry.text }]
+
+/**
  * The messages one turn sends: the buddy's brief, the day, then the recent conversation.
  *
  * The day is a system message rather than part of the brief so it can be rebuilt on every
@@ -110,5 +139,9 @@ export const describeDay = (snapshot, now = new Date()) => {
 export const buildMessages = ({ history, snapshot, now }) => [
   { role: 'system', content: SYSTEM },
   { role: 'system', content: describeDay(snapshot, now) },
-  ...history.slice(-HISTORY_TURNS * 2).map(({ role, text }) => ({ role, content: text })),
+  // An empty assistant bubble is the one still being streamed into; it says nothing yet.
+  ...history
+    .slice(-HISTORY_TURNS * 2)
+    .filter((entry) => entry.role === 'action' || entry.text)
+    .flatMap(asProtocol),
 ]

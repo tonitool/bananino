@@ -197,6 +197,8 @@ async function boot() {
       chatStop: () => bridge.chatStop(),
       chatClear: () => bridge.chatClear(),
       chatOpened: () => bridge.chatOpened(),
+      chatAct: (id, choice) => bridge.chatAct({ id, choice }),
+      chatModel: (name) => bridge.chatModel(name),
       copyClip: (id) => bridge.copyClip(id),
       pinClip: (id) => bridge.pinClip(id),
       deleteClip: (id) => bridge.deleteClip(id),

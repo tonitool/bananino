@@ -9,6 +9,13 @@ import { ask as askOpenRouter, readKey } from './openrouter.js'
  * returned so the note and the UI can say plainly that the transcript left the machine.
  */
 export const resolveProvider = async ({ allowCloud }) => {
+  /*
+   * Deliberately no arguments: `checkOllama` then picks a model that runs on this machine
+   * and will not reach for one of Ollama's cloud models, which are listed by the local
+   * daemon and served over the same port. `allowCloud` below is about OpenRouter, and a
+   * transcript going to the cloud has to be that explicit choice — not a side effect of
+   * someone having subscribed to Ollama.
+   */
   const ollama = await checkOllama()
   if (ollama.ok) {
     return { kind: 'ollama', model: ollama.model, label: `Ollama · ${ollama.model}`, isLocal: true }

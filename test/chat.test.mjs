@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { streamChat, visibleSoFar } from '../src/main/meeting/llm.js'
+import { isCloudModel, pickModel, streamChat, visibleSoFar } from '../src/main/meeting/llm.js'
 import { HISTORY_TURNS, SYSTEM, buildMessages, describeDay } from '../src/main/chat/prompt.js'
+import { createTools, kindOf } from '../src/main/chat/tools.js'
 
 test('a reasoning scratchpad is hidden while it is still being written', () => {
   // The closed case is what stripThinking already handled; the open one is the streaming
@@ -39,9 +40,40 @@ test('a streamed answer survives a chunk that splits a line in half', async () =
       messages: [],
       onText: (text) => seen.push(text),
     })
-    assert.equal(answer, 'You tracked 3h 40m today.')
+    assert.equal(answer.text, 'You tracked 3h 40m today.')
     // And it arrived in pieces, which is the entire reason this function exists.
     assert.ok(seen.length > 1, `expected several updates, got ${seen.length}`)
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
+test('a turn can both speak and call a tool', async () => {
+  // Models routinely say "let me check" and call something in the same message, so a turn
+  // that treated the two as alternatives would drop one of them.
+  const lines = [
+    JSON.stringify({ message: { content: 'Let me look.' } }),
+    JSON.stringify({
+      message: { tool_calls: [{ function: { name: 'read_notes', arguments: { date: '2026-01-13' } } }] },
+    }),
+    JSON.stringify({ done: true }),
+  ].join('\n')
+
+  const original = globalThis.fetch
+  let sent = null
+  globalThis.fetch = async (_url, options) => {
+    sent = JSON.parse(options.body)
+    return { ok: true, body: (async function* () { yield new TextEncoder().encode(lines) })() }
+  }
+  try {
+    const answer = await streamChat({
+      model: 'llama3.2',
+      messages: [],
+      tools: [{ type: 'function', function: { name: 'read_notes' } }],
+    })
+    assert.equal(answer.text, 'Let me look.')
+    assert.deepEqual(answer.calls, [{ name: 'read_notes', arguments: { date: '2026-01-13' } }])
+    assert.equal(sent.tools.length, 1, 'the tools were not offered to the model')
   } finally {
     globalThis.fetch = original
   }
@@ -88,4 +120,97 @@ test('every turn carries the brief, a fresh day, and a bounded slice of history'
   assert.match(messages[1].content, /^TODAY\n/)
   assert.equal(messages.length, 2 + HISTORY_TURNS * 2)
   assert.equal(messages.at(-1).content, 'turn 39')
+})
+
+test('an act that cannot be undone does not happen without a press', async () => {
+  // The rule the whole acting design rests on. It is tested by asking every tool which
+  // side of it they are on, rather than by trusting the list to stay right by hand.
+  const ran = []
+  const actions = {
+    startTimer: async (task) => ran.push(['startTimer', task]),
+    stopTimer: async () => ran.push(['stopTimer']),
+    saveNote: async (text) => ran.push(['saveNote', text]),
+    addManualTime: async (payload) => ran.push(['addManualTime', payload.task]),
+    mocoPush: async () => ran.push(['mocoPush']),
+    deleteNote: async (index) => ran.push(['deleteNote', index]),
+    cancelTimer: () => ran.push(['cancelTimer']),
+  }
+
+  const snapshot = {
+    timer: { task: 'BIK', startedAt: Date.now() - 60 * 60_000 },
+    moco: { connected: true, pending: 2, failed: 0 },
+  }
+  const tools = createTools({
+    actions,
+    getSnapshot: () => snapshot,
+    readNotes: async () => [{ index: 3, time: '11:04', text: 'a note' }],
+    searchTasks: () => [],
+  })
+
+  // Reversible acts offer an undo; the rest offer nothing and so must be proposed.
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(tools).map(([name, tool]) => [name, kindOf(tool)])),
+    {
+      start_timer: 'undoable',
+      save_note: 'undoable',
+      stop_timer: 'needs-a-press',
+      add_past_time: 'needs-a-press',
+      push_moco: 'needs-a-press',
+      read_notes: 'read',
+      find_moco_task: 'read',
+    },
+  )
+
+  // And an irreversible one describes the press without taking it.
+  const proposal = await tools.stop_timer.propose({})
+  assert.match(proposal.title, /Stop “BIK”/)
+  assert.match(proposal.detail, /queues it for MOCO/)
+  assert.deepEqual(ran, [], 'proposing an act was enough to perform it')
+
+  // Only the press runs it.
+  await tools.stop_timer.run({})
+  assert.deepEqual(ran, [['stopTimer']])
+})
+
+test('a second timer is refused rather than silently logging the first', async () => {
+  // start_timer is undoable only because it has written nothing. Letting it stop a running
+  // timer would log that stint, and the Undo pill could not put the entry back.
+  const ran = []
+  const tools = createTools({
+    actions: { startTimer: async (task) => ran.push(task) },
+    getSnapshot: () => ({ timer: { task: 'BIK', startedAt: Date.now() } }),
+    readNotes: async () => [],
+    searchTasks: () => [],
+  })
+
+  const outcome = await tools.start_timer.run({ task: 'Admin' })
+  assert.match(outcome.failed, /already running on "BIK"/)
+  assert.deepEqual(ran, [])
+})
+
+test('an Ollama cloud model is never picked by accident', () => {
+  // Ollama's paid plan lists cloud models in the local daemon and serves them over the
+  // same localhost port. They are also far bigger than anything a laptop runs, so the
+  // "biggest thing that fits" heuristic would reach for one the moment somebody
+  // subscribed — and every part of this app that talks to Ollama does so on the promise
+  // that the words stay on the machine.
+  const installed = [
+    { name: 'gpt-oss:120b-cloud', size: 0 },
+    { name: 'glm-4.6:cloud', size: 0 },
+    { name: 'llama3.2:latest', size: 2_000_000_000 },
+  ]
+
+  assert.equal(pickModel(installed), 'llama3.2:latest')
+  assert.ok(isCloudModel('gpt-oss:120b-cloud'))
+  assert.ok(isCloudModel('glm-4.6:cloud'))
+  assert.ok(!isCloudModel('llama3.2:latest'))
+
+  // With nothing local installed it reports having nothing rather than quietly going out.
+  assert.equal(pickModel(installed.slice(0, 2)), null)
+
+  // Chosen by name, it is used — that is the only way a cloud model is ever reached.
+  assert.equal(
+    pickModel(installed, undefined, { prefer: 'gpt-oss:120b-cloud', allowCloud: true }),
+    'gpt-oss:120b-cloud',
+  )
 })

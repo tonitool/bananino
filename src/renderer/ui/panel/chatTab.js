@@ -17,6 +17,44 @@ import { clear, el, setHidden } from '../dom.js'
  * fight their scroll position all the way through the answer.
  */
 
+/**
+ * An act, as a card in the thread.
+ *
+ * Two shapes, from one rule the main process enforces (see chat/tools.js): something
+ * reversible has already happened and carries an Undo; something irreversible has not
+ * happened and carries the press that would do it. The card says which in its own words —
+ * "Undo" against a past tense, a verb against a future one — because a pill that means
+ * two different things depending on a colour is how you undo the wrong thing.
+ */
+const cardOf = (action, { onAct }) => {
+  const title = el('p', { class: 'card-title' })
+  const detail = el('p', { class: 'card-detail' })
+  const button = el('button', { class: 'card-do', type: 'button' })
+
+  const root = el('div', { class: 'card' }, [
+    el('div', { class: 'card-body' }, [title, detail]),
+    button,
+  ])
+
+  const render = (next) => {
+    root.dataset.status = next.status
+    title.textContent = next.title ?? ''
+    detail.textContent = next.detail ?? ''
+    setHidden(detail, !next.detail)
+
+    const offer =
+      next.status === 'undoable' ? 'Undo' : next.status === 'proposed' ? 'Do it' : null
+    button.textContent = offer ?? ''
+    setHidden(button, !offer)
+    button.onclick = offer
+      ? () => onAct(next.id, next.status === 'undoable' ? 'undo' : 'confirm')
+      : null
+  }
+
+  render(action)
+  return { root, render }
+}
+
 const bubbleOf = (message) => {
   const bubble = el('div', { class: 'bubble' }, [el('p', { class: 'bubble-text' })])
   const text = bubble.firstChild
@@ -38,11 +76,13 @@ const bubbleOf = (message) => {
   return { root: bubble, render }
 }
 
-export const createChatTab = ({ onSend, onStop, onClear }) => {
+export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
   const thread = el('div', { class: 'thread', role: 'log', 'aria-live': 'polite' })
   const empty = el('p', {
     class: 'thread-empty',
-    text: 'Ask about your day — what you tracked, what you noted, what is coming up.',
+    text:
+      'Ask about your day, or ask for something done — start a timer, write a note, ' +
+      'log time you forgot.',
   })
 
   const input = el('textarea', {
@@ -76,14 +116,25 @@ export const createChatTab = ({ onSend, onStop, onClear }) => {
   })
 
   /**
-   * Who is answering, always on screen. This is the same claim the meeting tab makes
-   * about a transcript, for the same reason: where the words go is not something a user
-   * should have to infer from a settings page.
+   * Who is answering, always on screen — and the one control that changes it.
+   *
+   * The picker lives here rather than in Settings because the sentence beside it is the
+   * consequence: an Ollama cloud model is reached through the same localhost port as a
+   * local one, so "on your Mac · nothing leaves" and "Ollama cloud · leaves this Mac" are
+   * the only thing distinguishing them, and choosing one three views away from that line
+   * would be choosing it blind.
    */
   const engineLed = el('span', { class: 'engine-led', 'aria-hidden': 'true' })
   const engineText = el('span', { class: 'engine-text' })
   const engineHint = el('code', { class: 'engine-hint', hidden: true })
-  const engine = el('p', { class: 'engine' }, [engineLed, engineText, engineHint])
+  const engineModel = el('select', {
+    class: 'engine-model',
+    'aria-label': 'Which model answers',
+    hidden: true,
+    onchange: (event) => onModel(event.target.value),
+  })
+  // The model first, then what choosing it means: the order the sentence has to be read in.
+  const engine = el('p', { class: 'engine' }, [engineLed, engineModel, engineText, engineHint])
 
   const root = el('section', { class: 'tab-panel', id: 'tab-chat', role: 'tabpanel' }, [
     thread,
@@ -114,36 +165,84 @@ export const createChatTab = ({ onSend, onStop, onClear }) => {
     }
   })
 
-  let bubbles = []
+  let rows = []
   let streaming = false
 
+  /**
+   * The options, rebuilt only when the model list actually changes — a `<select>` that is
+   * rewritten while its menu is open closes it under the user's cursor, and this repaints
+   * on every beat of a streaming answer.
+   */
+  let listed = ''
+  const renderModels = ({ available = [], model }) => {
+    setHidden(engineModel, available.length === 0)
+    const key = `${model}|${available.map((entry) => entry.name).join(',')}`
+    if (key === listed) return
+    listed = key
+
+    clear(engineModel)
+    // The automatic pick is an option of its own, so there is a way back to "whatever is
+    // local" without having to remember which model that was.
+    engineModel.append(el('option', { value: '', text: 'automatic (local)' }))
+    for (const entry of available) {
+      /*
+       * No "— cloud" suffix: a cloud model is *recognised* by its name ending in -cloud
+       * (see isCloudModel), so the tag would always be repeating the last word of the
+       * option it is attached to, and it pushed the real name out of a 152px select.
+       */
+      engineModel.append(
+        el('option', { value: entry.name, text: entry.name, selected: entry.name === model }),
+      )
+    }
+    engineModel.value = available.some((entry) => entry.name === model) ? model : ''
+  }
+
   const renderEngine = (state) => {
-    const { ok, checking, model, reason, hint } = state ?? {}
-    engineLed.dataset.state = checking ? 'checking' : ok ? 'ok' : 'off'
+    const { ok, checking, model, isLocal, reason, hint } = state ?? {}
+    engineLed.dataset.state = checking ? 'checking' : ok ? (isLocal ? 'ok' : 'cloud') : 'off'
+    /*
+     * Kept to a handful of words because the rail is 316px and this shares the line with
+     * the model's own name: an accurate sentence that wraps under the select and gets cut
+     * off is not a claim anybody reads.
+     */
     engineText.textContent = checking
-      ? 'looking for a local model…'
+      ? 'looking for a model…'
       : ok
-        ? `on your Mac · ${model} · nothing leaves`
+        ? isLocal
+          ? 'nothing leaves this Mac'
+          : 'this leaves your Mac'
         : (reason ?? 'no local model')
     engineHint.textContent = hint ?? ''
     setHidden(engineHint, ok || checking || !hint)
+    renderModels(state ?? {})
   }
 
   /**
-   * The thread is only appended to and its last bubble only rewritten, which is exactly
-   * what a conversation does. A cleared thread is the one case that starts over.
+   * A read is not shown. The main process keeps it in the thread because the model has to
+   * see what it looked up, but a card reading "looked at your notes" is noise in a
+   * conversation whose next sentence is about those notes.
    */
-  const renderThread = (messages) => {
-    if (messages.length < bubbles.length) {
+  const isVisible = (message) => message.role !== 'action' || message.status !== 'read'
+
+  /**
+   * The thread is only appended to and its last entry rewritten, which is exactly what a
+   * conversation does. Anything else — a cleared thread, a read appearing in the middle —
+   * starts the list over, which is rare enough to cost nothing.
+   */
+  const renderThread = (all) => {
+    const messages = all.filter(isVisible)
+    const stale = messages.length < rows.length || rows.some((row, i) => row.role !== messages[i]?.role)
+    if (stale) {
       clear(thread)
-      bubbles = []
+      rows = []
     }
 
     messages.forEach((message, index) => {
-      if (bubbles[index]) return bubbles[index].render(message)
-      const bubble = bubbleOf(message)
-      bubbles[index] = bubble
-      thread.append(bubble.root)
+      if (rows[index]) return rows[index].render(message)
+      const row = message.role === 'action' ? cardOf(message, { onAct }) : bubbleOf(message)
+      row.role = message.role
+      rows[index] = row
+      thread.append(row.root)
     })
 
     setHidden(thread, messages.length === 0)

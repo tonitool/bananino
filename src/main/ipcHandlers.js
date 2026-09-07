@@ -94,6 +94,13 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
     [IPC.chatStop]: () => actions.chatStop(),
     [IPC.chatClear]: () => actions.chatClear(),
     [IPC.chatOpened]: () => actions.chatOpened(),
+    [IPC.chatModel]: (_e, name) => actions.chatModel(asString(name)),
+    // Only the two words the cards can send: a renderer asking for anything else is
+    // asking for a code path that does not exist.
+    [IPC.chatAct]: (_e, payload) => {
+      const choice = asString(payload?.choice)
+      if (choice === 'confirm' || choice === 'undo') actions.chatAct(Number(payload?.id), choice)
+    },
 
     [IPC.calendarConnect]: (_e, payload) =>
       actions.calendarConnect({ feedUrl: asString(payload?.feedUrl) }),

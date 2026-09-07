@@ -16,21 +16,49 @@ const stripThinking = (text) =>
     .trim()
 
 /**
+ * Whether a model in `ollama list` actually runs on this machine.
+ *
+ * Ollama's paid plan adds *cloud* models — `gpt-oss:120b-cloud`, `glm-4.6:cloud` and the
+ * rest. They appear in the local daemon's own model list and are used through the same
+ * API on the same localhost port, which is convenient and completely invisible: the
+ * daemon forwards the request, prompt and all, to Ollama's servers.
+ *
+ * That matters here more than anywhere else in this app, because everything that talks to
+ * Ollama does so on the promise that it stays on the machine. A cloud model is a fine
+ * thing to choose — it is far better at deciding which tool to call — but it can only be
+ * chosen deliberately, and it cannot be described as local. Hence a name test rather than
+ * a note in a doc: they are also much bigger than anything a laptop would run, so they
+ * would otherwise be picked by accident the moment someone subscribed.
+ */
+export const isCloudModel = (name) => /(?::|-)cloud$/i.test(String(name ?? ''))
+
+/**
  * The best installed model that is small enough to actually finish.
  *
  * Size is a hard filter before preference: an oversized model is worse than a modest
  * one, because a summary that times out is no summary at all. If everything installed is
  * oversized, the smallest is used rather than refusing outright.
+ *
+ * `prefer` names one exactly — the user's own choice, which beats every heuristic here,
+ * including the size limit and the cloud rule. `allowCloud` lets the automatic pick reach
+ * for a cloud model, and defaults to off: see `isCloudModel`.
  */
-export const pickModel = (installed, preference = OLLAMA.modelPreference) => {
+export const pickModel = (installed, preference = OLLAMA.modelPreference, options = {}) => {
+  const { prefer = '', allowCloud = false } = options
   const models = installed
     .map((entry) => (typeof entry === 'string' ? { name: entry, size: 0 } : entry))
     .filter((model) => model.name)
   if (models.length === 0) return null
 
+  const chosen = models.find((model) => model.name === prefer)
+  if (chosen) return chosen.name
+
+  const local = allowCloud ? models : models.filter((model) => !isCloudModel(model.name))
+  if (local.length === 0) return null
+
   const family = (name) => String(name).split(':')[0]
-  const affordable = models.filter((model) => (model.size ?? 0) <= OLLAMA.maxModelBytes)
-  const pool = affordable.length > 0 ? affordable : [...models].sort((a, b) => a.size - b.size)
+  const affordable = local.filter((model) => (model.size ?? 0) <= OLLAMA.maxModelBytes)
+  const pool = affordable.length > 0 ? affordable : [...local].sort((a, b) => a.size - b.size)
 
   for (const wanted of preference) {
     const match = pool.find((model) => model.name === wanted || family(model.name) === wanted)
@@ -39,24 +67,38 @@ export const pickModel = (installed, preference = OLLAMA.modelPreference) => {
   return pool[0].name
 }
 
-export const checkOllama = async () => {
+/**
+ * What is installed and which of it to use. `prefer` and `allowCloud` are passed straight
+ * to `pickModel`; the default is the local-only pick every caller had before.
+ */
+export const checkOllama = async ({ prefer = '', allowCloud = false } = {}) => {
   try {
     const response = await fetch(`${OLLAMA.url}/api/tags`, { signal: AbortSignal.timeout(4000) })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const installed = (await response.json()).models ?? []
-    const names = installed.map((entry) => entry.name)
-    const model = pickModel(installed.map((entry) => ({ name: entry.name, size: entry.size })))
+    const available = installed.map((entry) => ({
+      name: entry.name,
+      isCloud: isCloudModel(entry.name),
+    }))
+    const model = pickModel(
+      installed.map((entry) => ({ name: entry.name, size: entry.size })),
+      OLLAMA.modelPreference,
+      { prefer, allowCloud },
+    )
 
     if (!model) {
+      const onlyCloud = available.length > 0 && available.every((entry) => entry.isCloud)
       return {
         ok: false,
-        reason: 'Ollama is running but has no models installed.',
-        hint: `ollama pull ${OLLAMA.modelPreference[0]}`,
-        available: names,
+        reason: onlyCloud
+          ? 'The only models installed are Ollama cloud models, which do not run on this Mac.'
+          : 'Ollama is running but has no models installed.',
+        hint: onlyCloud ? undefined : `ollama pull ${OLLAMA.modelPreference[0]}`,
+        available,
       }
     }
-    return { ok: true, model, available: names }
+    return { ok: true, model, isLocal: !isCloudModel(model), available }
   } catch (error) {
     return {
       ok: false,
@@ -89,8 +131,11 @@ export const visibleSoFar = (text) =>
  * `onText` is handed the whole visible answer so far, not the newest fragment. Callers
  * therefore never have to reassemble it, and dropping a reasoning scratchpad — which can
  * only be judged from the text around it — stays this function's problem.
+ *
+ * Returns the finished answer *and* any tools the model asked for, because a turn can be
+ * both: models routinely say "let me check" and call something in the same message.
  */
-export const streamChat = async ({ model, messages, signal, onText }) => {
+export const streamChat = async ({ model, messages, tools, signal, onText }) => {
   const response = await fetch(`${OLLAMA.url}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -101,6 +146,7 @@ export const streamChat = async ({ model, messages, signal, onText }) => {
       think: false,
       options: { temperature: 0.4 },
       messages,
+      ...(tools?.length ? { tools } : {}),
     }),
   })
 
@@ -116,6 +162,7 @@ export const streamChat = async ({ model, messages, signal, onText }) => {
   const decoder = new TextDecoder()
   let pending = ''
   let answer = ''
+  const calls = []
 
   for await (const chunk of response.body) {
     pending += decoder.decode(chunk, { stream: true })
@@ -136,10 +183,15 @@ export const streamChat = async ({ model, messages, signal, onText }) => {
         answer += event.message.content
         onText?.(visibleSoFar(answer))
       }
+      // Ollama sends a tool call whole rather than as a stream of JSON fragments, so
+      // there is nothing to reassemble here — only to collect.
+      for (const call of event.message?.tool_calls ?? []) {
+        if (call?.function?.name) calls.push(call.function)
+      }
     }
   }
 
-  return visibleSoFar(answer)
+  return { text: visibleSoFar(answer), calls }
 }
 
 /**

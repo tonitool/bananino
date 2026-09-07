@@ -45,6 +45,12 @@ const sanitize = (raw) => ({
   // Meeting transcription always runs locally; this only governs whether a *summary*
   // may fall back to the cloud, so it defaults to off.
   meetingCloudFallback: raw?.meetingCloudFallback === true,
+  /*
+   * Which model the chat talks to, chosen in the chat's own engine line. Empty means the
+   * automatic local pick — and an unknown name simply falls back to that, since a model
+   * can be deleted between launches.
+   */
+  chatModel: typeof raw?.chatModel === 'string' ? raw.chatModel.slice(0, 120) : '',
   meetingUseMic: raw?.meetingUseMic !== false,
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
   character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,

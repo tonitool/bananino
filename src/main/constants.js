@@ -233,6 +233,8 @@ export const IPC = Object.freeze({
   chatStop: 'chat:stop',
   chatClear: 'chat:clear',
   chatOpened: 'chat:opened',
+  chatAct: 'chat:act',
+  chatModel: 'chat:model',
   chatState: 'chat:state',
 
   calendarConnect: 'calendar:connect',

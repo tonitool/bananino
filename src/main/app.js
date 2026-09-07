@@ -28,7 +28,13 @@ import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
 import { startUpdateNotifier } from './update/notifier.js'
 import { createNowPlaying } from './music/nowPlaying.js'
-import { appendNote, deleteNote, readDayMarkdown, readEntry } from './storage/notes.js'
+import {
+  appendNote,
+  deleteNote,
+  readDayMarkdown,
+  readEntry,
+  readNotesToday,
+} from './storage/notes.js'
 import { AI_TARGETS, buildHandoff } from './ai/handoff.js'
 import { appendManualTimeEntry } from './storage/timeLog.js'
 import { describeMinutes, parseDuration } from './storage/duration.js'
@@ -192,6 +198,26 @@ export const startApp = () => {
   const chat = createChat({
     getSnapshot: () => lastSnapshot,
     onState: (state) => send(IPC.chatState, state),
+    /*
+     * Read lazily, because the chat exists before the actions it drives. Everything the
+     * buddy can do it does through these — the very same calls the panel's buttons make —
+     * so there is no path the chat can take that the UI does not already have, and a
+     * timer it starts hops and toasts exactly as a clicked one does.
+     */
+    actions: {
+      startTimer: (task, binding, description) => actions.startTimer(task, binding, description),
+      stopTimer: () => actions.stopTimer(),
+      cancelTimer: () => actions.cancelTimer(),
+      saveNote: (text) => actions.saveNote(text),
+      deleteNote: (index) => actions.deleteNote(index),
+      addManualTime: (payload) => actions.addManualTime(payload),
+      mocoPush: () => actions.mocoPush(),
+    },
+    readNotes: ({ at, limit } = {}) =>
+      readNotesToday({ dataDir: settings.dataDir, at, limit }).catch(() => []),
+    searchTasks: (query, limit) => moco.search(query, limit),
+    getModel: () => settings.chatModel,
+    setModel: (name) => saveSettings({ chatModel: name }),
   })
 
   const timer = createTimer({
@@ -204,6 +230,8 @@ export const startApp = () => {
       if (event.type === 'nudged') {
         say(`${event.minutes > 0 ? '+' : ''}${event.minutes}m — for testing`)
       }
+
+      if (event.type === 'cancelled') say(`dropped “${event.task}” — nothing logged`)
 
       if (event.type === 'discarded') {
         say(`only ${Math.round(event.seconds)}s — not logged`, 'sad')
@@ -260,6 +288,9 @@ export const startApp = () => {
     chatStop: () => chat.stop(),
     chatClear: () => chat.clear(),
     chatOpened: () => chat.refresh(),
+    /** Pressing a card: the confirm an irreversible act waits for, or an Undo. */
+    chatAct: (id, choice) => chat.act(id, choice),
+    chatModel: (name) => void chat.choose(name),
 
     meetingStart: async ({ title } = {}) => {
       await meeting.start({ title })
@@ -541,6 +572,8 @@ export const startApp = () => {
     startTimer: (task, binding, description) =>
       timer.start(task, binding, description).catch(reportOnly('start the timer')),
     stopTimer: () => timer.stop().catch(reportOnly('stop the timer')),
+    /** Undo of a start: the stint is dropped rather than logged. See timer.js. */
+    cancelTimer: () => (timer.cancel(), refresh()),
     describeTimer: (text) => (timer.describe(text), void pushSnapshot()),
 
     nudgeTimer: (minutes) => {
