@@ -4,21 +4,27 @@ name: Release
 # bundle is signed ad-hoc by codesign, and the DMG is made by hdiutil. So a release is cut
 # on a macOS runner rather than from whichever machine happens to be to hand.
 #
-# Three ways in, because whoever cuts a release rarely holds every permission for it.
+# Four ways in, because whoever needs this run rarely holds every permission for it.
 #
 #   - push a v* tag             releases that tag, checked against package.json
 #   - push a release/v* branch  releases package.json's version, tags it here, and deletes
 #                               the branch again; it exists only to start this
+#   - push a build/* branch     builds, signs and checks, and releases nothing; deleted
+#                               the same way
 #   - run it by hand            releases package.json's version unless told to only build
 #
-# The middle one looks redundant until you need it: pushing a tag and dispatching a
+# The two branch doors look redundant until you need them: pushing a tag and dispatching a
 # workflow are separately privileged, and an automation that can do neither can still push
-# a branch. All three end in the same place — the version in package.json decides what
-# ships, and a version that already has a tag is refused rather than quietly re-cut.
+# a branch. The build/* one exists because signing is the part that cannot be tried out
+# anywhere else — no Linux machine has codesign or notarytool — and finding out whether
+# the credentials work should not cost a published release.
+#
+# Whichever door, the version in package.json decides what ships, and a version that
+# already has a tag is refused rather than quietly re-cut.
 on:
   push:
     tags: ['v*']
-    branches: ['release/v*']
+    branches: ['release/v*', 'build/*']
   workflow_dispatch:
     inputs:
       release:
@@ -71,8 +77,18 @@ jobs:
               releasing=true
               ;;
             push:branch)
-              tag="v$version"
-              releasing=true
+              # release/* is a request to ship; build/* is a request to prove the build
+              # works. Nothing else can reach here — see the branch filter above.
+              case "$GITHUB_REF_NAME" in
+                release/*)
+                  tag="v$version"
+                  releasing=true
+                  ;;
+                *)
+                  tag=''
+                  releasing=false
+                  ;;
+              esac
               ;;
             *)
               if [ "${{ inputs.release }}" = 'true' ]; then
@@ -93,7 +109,7 @@ jobs:
           if [ "$releasing" = 'true' ]; then
             echo "Cutting **$tag**." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Building **$version** only — no release. Tick \`release\` to cut one." \
+            echo "Building **$version** only — no release." \
               >> "$GITHUB_STEP_SUMMARY"
           fi
 
