@@ -122,10 +122,19 @@ jobs:
       # no secrets, is never blocked on credentials somebody else holds.
       #
       # Secrets cannot be read in an `if:`, hence a step that turns them into outputs.
+      #
+      # The credentials are passed on through $GITHUB_ENV rather than an `env:` block on
+      # the build step, and only when all of them exist. That is not tidiness: an *empty*
+      # CSC_LINK is not the same as an unset one. electron-builder reads it as a path to a
+      # certificate, resolves the empty string to the project directory, and dies with
+      # "not a file" — so writing the secrets into `env:` unconditionally turned an
+      # unsigned build from a working fallback into a hard failure, which is exactly what
+      # a repository without the secrets got. Unset, and it signs ad-hoc as it always did.
       - name: Decide whether this run can sign
         id: sign
         env:
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -136,12 +145,33 @@ jobs:
             # Notarization is off by default in package.json so that `npm run dist` on a
             # machine with no credentials still works; a run that has them opts in.
             args='--config.mac.notarize=true'
+
+            # Still masked in the log — these were registered as secrets when they were
+            # read above. The .p12 password is passed whatever it is, empty included,
+            # since a certificate may be exported without one.
+            {
+              echo "CSC_LINK=$CSC_LINK"
+              echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD"
+              echo "APPLE_ID=$APPLE_ID"
+              echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            } >> "$GITHUB_ENV"
+
             echo 'Signed with a Developer ID and notarized.' >> "$GITHUB_STEP_SUMMARY"
           else
             signing=false
             args=''
-            echo 'Not signed: this repository has no Apple credentials, so the app is' \
-              'ad-hoc signed and needs `xattr -dr com.apple.quarantine` on first launch.' \
+
+            # Which ones are missing, by name. A single misspelled secret otherwise looks
+            # identical to no secrets at all, and the app quietly ships unsigned.
+            missing=''
+            [ -n "$CSC_LINK" ] || missing="$missing APPLE_CERTIFICATE_P12"
+            [ -n "$APPLE_ID" ] || missing="$missing APPLE_ID"
+            [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] || missing="$missing APPLE_APP_SPECIFIC_PASSWORD"
+            [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID"
+
+            echo "Not signed — no value for:$missing. The app is ad-hoc signed and needs" \
+              '`xattr -dr com.apple.quarantine` on first launch.' \
               >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -186,12 +216,6 @@ jobs:
       # public, so a manual run can check a build without littering drafts.
       - name: Build and package
         if: steps.run.outputs.releasing != 'true'
-        env:
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run dist -- ${{ steps.sign.outputs.args }}
 
       # Uploads into a *draft* release — see build.publish in package.json. Publishing
@@ -203,11 +227,6 @@ jobs:
         if: steps.run.outputs.releasing == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run release -- ${{ steps.sign.outputs.args }}
 
       # The check that a signed release is really signed, and really notarized.
