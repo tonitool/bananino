@@ -80,10 +80,29 @@ Apple, which is what lets a download open on a double-click instead of being rep
 damaged. Neither happens locally by default: a contributor with no Apple membership can
 still run `npm run dist`, and gets the ad-hoc-signed app described above.
 
-The release workflow signs when — and only when — all four secrets below are set on the
-repository. Half of them is no better than none, because an app that is signed but not
-notarized is still blocked on first launch, so the workflow checks for the whole set and
-otherwise builds unsigned rather than failing.
+Signing locally needs Xcode's command line tools and the certificate in your keychain,
+which is enough on its own — electron-builder finds it. Pointing at the exported `.p12`
+instead is worth doing before trusting the workflow, because it is the same path CI takes:
+
+```bash
+export CSC_LINK=/path/to/Certificates.p12   # or leave unset to use the keychain
+export CSC_KEY_PASSWORD='…'
+export APPLE_ID='you@example.com'
+export APPLE_APP_SPECIFIC_PASSWORD='xxxx-xxxx-xxxx-xxxx'
+export APPLE_TEAM_ID='XXXXXXXXXX'
+
+npm run dist -- --config.mac.notarize=true
+npm run verify:signature
+```
+
+Notarization is the slow part — a few minutes at Apple, on top of the build. `npm run
+dist` on its own skips both and produces the ad-hoc app, so day-to-day work is unaffected.
+
+The release workflow signs when — and only when — the certificate and all three
+notarytool credentials below are set on the repository. Half of them is no better than
+none, because an app that is signed but not notarized is still blocked on first launch, so
+the workflow checks for the set and otherwise builds unsigned rather than failing. (The
+`.p12` password is not part of that check — a certificate may be exported without one.)
 
 | Secret | What it is |
 | --- | --- |
@@ -98,13 +117,19 @@ rest to `notarytool`. Notarization is switched on by the workflow rather than by
 `package.json` (`--config.mac.notarize=true`), so a build without credentials never tries
 to notarize and fail.
 
-A signed run then checks the bundle rather than trusting the log, because electron-builder
-only *warns* when it cannot find a certificate: a mistyped secret would otherwise pass a
-green run and land as a download macOS refuses. It asserts a Developer ID authority (an
-ad-hoc signature passes `codesign --verify` perfectly well), the hardened runtime flag, a
-Developer ID on both native helpers in `Contents/Resources/bin` — they sit outside the
-asar and are signed separately — a stapled notarization ticket, and finally `spctl
---assess`, which is the question the user's Mac will ask.
+`npm run verify:signature` is what makes any of this trustworthy, and the workflow runs
+the same script. electron-builder only *warns* when it cannot find a certificate — it
+packages an unsigned app and exits 0 — so the failure to guard against is not a red build
+but a green one that produces a download macOS refuses. Nothing is taken from the build
+log; every claim is read back off the bundle:
+
+- a **Developer ID authority**, not merely a valid signature — an ad-hoc one passes
+  `codesign --verify` perfectly well, it just names nobody
+- the **hardened runtime** flag, without which Apple rejects the submission
+- a Developer ID on **both native helpers** in `Contents/Resources/bin`; they sit outside
+  the asar, so they are signed separately and are the likeliest thing to be missed
+- a **stapled ticket**, without which first launch has to reach Apple over the network
+- `spctl --assess`, the question the user's Mac will ask, asked the same way
 
 Two entitlements in [entitlements.mac.plist](resources/entitlements.mac.plist) exist only
 because of this: the hardened runtime does not restrict an ad-hoc-signed app, so

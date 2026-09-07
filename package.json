@@ -21,6 +21,7 @@
     "verify:packaged": "node scripts/verify.mjs packaged",
     "radio-textures": "node scripts/prepare-radio-textures.mjs",
     "verify:assets": "node scripts/verifyAssets.mjs",
+    "verify:signature": "node scripts/verifySignature.mjs",
     "build:native": "node scripts/build-native.mjs"
   },
   "license": "MIT",
