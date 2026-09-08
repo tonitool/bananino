@@ -45,19 +45,40 @@ const string = (description) => ({ type: 'string', description })
  * node. Built as a function so the session can exist before the actions it drives — app.js
  * wires them in that order.
  */
-export const createTools = ({ actions, getSnapshot, readNotes, searchTasks }) => {
+export const createTools = ({ actions, getSnapshot, readNotes, readClips, searchTasks }) => {
+  /**
+   * A binding only ever comes from certainty: the task named *is* a catalogue entry, or
+   * the query the model passed has exactly one answer. Anything fuzzier books to the
+   * wrong billable project some day, so no match beats a guessed one.
+   */
+  const resolveBinding = (name, query) => {
+    const toBinding = (entry) => ({ projectId: entry.projectId, taskId: entry.taskId, label: entry.label })
+
+    if (query) {
+      const candidates = searchTasks(query, 10)
+      return candidates.length === 1 ? toBinding(candidates[0]) : null
+    }
+
+    const equal = (a, b) =>
+      a.replace(/\s*[—–-]\s*/g, ' — ').replace(/\s+/g, ' ').trim().toLowerCase() ===
+      b.replace(/\s*[—–-]\s*/g, ' — ').replace(/\s+/g, ' ').trim().toLowerCase()
+    const direct = searchTasks(name, 10).filter((entry) => equal(entry.label, name))
+    return direct.length === 1 ? toBinding(direct[0]) : null
+  }
+
   const tools = {
     start_timer: {
       schema: schema(
         'start_timer',
-        'Start tracking time on a task. Refuses if a timer is already running.',
+        'Start tracking time on a task. Refuses if a timer is already running. To bill the stint to MOCO, pass moco_query with words from the project; only a single match binds, anything vaguer stays local.',
         {
           task: string('The task name, e.g. "BIK · Konzeption".'),
           description: string('Optional note about what you are doing, for MOCO.'),
+          moco_query: string('Optional: words naming the MOCO project or task, e.g. "creative engine junior".'),
         },
         ['task'],
       ),
-      run: async ({ task, description }) => {
+      run: async ({ task, description, moco_query }) => {
         const name = String(task ?? '').trim()
         if (!name) return { failed: 'No task name was given.' }
 
@@ -72,11 +93,14 @@ export const createTools = ({ actions, getSnapshot, readNotes, searchTasks }) =>
           }
         }
 
-        await actions.startTimer(name, null, String(description ?? ''))
+        const binding = resolveBinding(name, String(moco_query ?? '').trim() || null)
+        await actions.startTimer(name, binding, String(description ?? ''))
         return {
           title: `Timer started · ${name}`,
-          detail: description ? String(description) : 'nothing logged yet',
-          told: `Started a timer on "${name}". Nothing has been written to the day's log yet.`,
+          detail: description ? String(description) : binding ? `books to ${binding.label}` : 'nothing logged yet',
+          told: binding
+            ? `Started a timer on "${name}" — it queues for MOCO as "${binding.label}" when stopped. Nothing written to the day's log yet.`
+            : `Started a timer on "${name}". No single MOCO task matched, so the time stays local unless one is picked in the panel.`,
         }
       },
       undo: async () => {
@@ -207,6 +231,30 @@ export const createTools = ({ actions, getSnapshot, readNotes, searchTasks }) =>
         const notes = await readNotes({ at, limit: 20 })
         if (notes.length === 0) return 'No notes were written that day.'
         return notes.map((note) => `${note.time} ${note.text.replace(/\s+/g, ' ')}`).join('\n')
+      },
+    },
+
+    /**
+     * The clipboard, which the prompt already claims the buddy helps with. Read-only and
+     * local, so no card; each clip is shortened to one line because the model only needs
+     * to find and describe it, never to quote it whole.
+     */
+    read_clips: {
+      schema: schema(
+        'read_clips',
+        'Search the clipboard history — text the user copied. Use it for "what did I copy" questions and for finding a copied path, link or snippet.',
+        { query: string('Words to look for; leave empty for the most recent copies.') },
+      ),
+      read: async ({ query }) => {
+        if (!readClips) return 'Clipboard history is off — it can be switched on in Settings.'
+        const clips = await readClips({ query: String(query ?? ''), limit: 12 })
+        if (clips === null) return 'Clipboard history is off — it can be switched on in Settings.'
+        if (clips.length === 0) {
+          return String(query ?? '').trim()
+            ? 'Nothing in the clipboard history contains that.'
+            : 'The clipboard history is empty.'
+        }
+        return clips.map((clip) => clip.text.replace(/\s+/g, ' ').slice(0, 160)).join('\n—\n')
       },
     },
 

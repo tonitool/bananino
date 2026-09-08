@@ -157,6 +157,7 @@ test('an act that cannot be undone does not happen without a press', async () =>
       add_past_time: 'needs-a-press',
       push_moco: 'needs-a-press',
       read_notes: 'read',
+      read_clips: 'read',
       find_moco_task: 'read',
     },
   )
@@ -170,6 +171,70 @@ test('an act that cannot be undone does not happen without a press', async () =>
   // Only the press runs it.
   await tools.stop_timer.run({})
   assert.deepEqual(ran, [['stopTimer']])
+})
+
+test('a chat-started timer books to MOCO when the task names one catalogue entry', async () => {
+  // The regression this guards: start_timer used to call the action with a null binding
+  // always, so every chat-tracked stint was logged locally and could never be pushed.
+  const started = []
+  const entry = {
+    projectId: 42,
+    taskId: 7,
+    customer: 'Clue One',
+    project: 'Creative Engine JuniorDepot',
+    task: 'Creative Technologist',
+    label: 'Creative Engine JuniorDepot — Creative Technologist',
+  }
+  const tools = createTools({
+    actions: { startTimer: async (...args) => started.push(args) },
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [entry],
+  })
+
+  const outcome = await tools.start_timer.run({ task: 'Creative Engine JuniorDepot — Creative Technologist' })
+
+  assert.deepEqual(started[0][1], { projectId: 42, taskId: 7, label: entry.label })
+  assert.match(outcome.told, /queues for MOCO/)
+})
+
+test('a moco_query binds only on a single answer — two matches means no guess', async () => {
+  const started = []
+  const junior = { projectId: 1, taskId: 2, label: 'Creative Engine JuniorDepot — Creative Technologist' }
+  const senior = { projectId: 1, taskId: 3, label: 'Creative Engine SeniorDepot — Creative Technologist' }
+  const tools = createTools({
+    actions: { startTimer: async (...args) => started.push(args) },
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [junior, senior],
+  })
+
+  const outcome = await tools.start_timer.run({ task: 'Creative Engine', moco_query: 'creative engine' })
+
+  assert.equal(started[0][1], null, 'an ambiguous query must not pick a billable target')
+  assert.match(outcome.told, /stays local/)
+})
+
+test('read_clips answers from the clipboard history, shortened to a line each', async () => {
+  // readClips is handed in query-filtered, exactly as app.js's searchClips wrapper works.
+  const clips = [
+    { text: '/Users/me/Desktop/spec sketch\nfinal v3.pdf', at: 1, pinned: false },
+    { text: 'a shopping list', at: 2, pinned: false },
+  ]
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    readClips: async ({ query } = {}) =>
+      clips.filter((clip) => !query || clip.text.toLowerCase().includes(query)),
+  })
+
+  const answer = await tools.read_clips.read({ query: 'spec' })
+  assert.equal(answer, '/Users/me/Desktop/spec sketch final v3.pdf')
+
+  const none = await tools.read_clips.read({ query: 'zzzz' })
+  assert.match(none, /nothing in the clipboard history/i)
 })
 
 test('a second timer is refused rather than silently logging the first', async () => {

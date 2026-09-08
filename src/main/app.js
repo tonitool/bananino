@@ -40,7 +40,7 @@ import {
 import { AI_TARGETS, buildHandoff } from './ai/handoff.js'
 import { appendManualTimeEntry } from './storage/timeLog.js'
 import { describeMinutes, parseDuration } from './storage/duration.js'
-import { clearUnpinned, removeClip, togglePin } from './storage/clips.js'
+import { clearUnpinned, removeClip, searchClips, togglePin } from './storage/clips.js'
 import { ensureDir } from './storage/paths.js'
 import { formatMinutes } from './storage/dates.js'
 import {
@@ -224,6 +224,9 @@ export const startApp = () => {
     },
     readNotes: ({ at, limit } = {}) =>
       readNotesToday({ dataDir: settings.dataDir, at, limit }).catch(() => []),
+    // Read-only and only while remembering is on — the clips tab's own rule for showing.
+    readClips: ({ query, limit } = {}) =>
+      settings.captureClipboard ? searchClips(clipboard.all(), query, limit) : null,
     searchTasks: (query, limit) => moco.search(query, limit),
     getModel: () => settings.chatModel,
     setModel: (name) => saveSettings({ chatModel: name }),

@@ -27,6 +27,9 @@ and **clipboard history**. Everything is stored as plain files on your own disk.
 4. Optional: add it under **System Settings → General → Login Items** so it
    starts with your Mac.
 
+From 1.4.0 on, new versions download themselves in the background and install on the next
+restart (or right away from the menu bar icon → **Restart Bananino for v…**).
+
 First meeting transcription downloads the Whisper model (~490 MB) from
 HuggingFace on demand — nothing else to install. Meeting summaries use a local
 [Ollama](https://ollama.com) model if one is running, which is optional.

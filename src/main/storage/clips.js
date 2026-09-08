@@ -61,3 +61,16 @@ export const togglePin = (clips, id) =>
   clips.map((clip) => (clip.id === id ? { ...clip, pinned: !clip.pinned } : clip))
 
 export const clearUnpinned = (clips) => clips.filter((clip) => clip.pinned)
+
+/**
+ * Word-match search over what was copied, newest first — the chat's read_clips tool
+ * reaches the clipboard through here, same words-everywhere rule as the MOCO catalogue.
+ */
+export const searchClips = (clips, query, limit = 12) => {
+  const words = String(query ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+  const found =
+    words.length === 0
+      ? clips
+      : clips.filter((clip) => words.every((word) => clip.text.toLowerCase().includes(word)))
+  return found.slice(0, limit)
+}

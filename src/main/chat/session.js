@@ -37,11 +37,12 @@ export const createChat = ({
   onState,
   actions,
   readNotes,
+  readClips,
   searchTasks,
   getModel,
   setModel,
 }) => {
-  const tools = createTools({ actions, getSnapshot, readNotes, searchTasks })
+  const tools = createTools({ actions, getSnapshot, readNotes, readClips, searchTasks })
   const schemas = toolSchemas(tools)
 
   /**
