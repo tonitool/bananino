@@ -27,6 +27,9 @@ import { createCalendarSync } from './calendar/sync.js'
 import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { forgetKey, readKey, saveKey } from './meeting/openrouter.js'
 import { createMocoSync } from './moco/sync.js'
 import { startAutoUpdater } from './update/updater.js'
 import { createNowPlaying } from './music/nowPlaying.js'
@@ -230,6 +233,21 @@ export const startApp = () => {
     searchTasks: (query, limit) => moco.search(query, limit),
     getModel: () => settings.chatModel,
     setModel: (name) => saveSettings({ chatModel: name }),
+    getEngineMode: () => settings.chatEngine,
+    hasCloudKey: async () => (await readKey()) !== null,
+    // Spotlight, for the chat's search_files tool: looks, never opens or moves anything.
+    searchFiles: async (query, limit = 10) => {
+      try {
+        const { stdout } = await execFileAsync('mdfind', [query], {
+          timeout: 8_000,
+          maxBuffer: 256 * 1024,
+        })
+        return stdout.split('\n').filter(Boolean).slice(0, limit)
+      } catch (error) {
+        console.error('[app] file search failed:', error.message)
+        return []
+      }
+    },
   })
 
   const timer = createTimer({
@@ -303,6 +321,25 @@ export const startApp = () => {
     /** Pressing a card: the confirm an irreversible act waits for, or an Undo. */
     chatAct: (id, choice) => chat.act(id, choice),
     chatModel: (name) => void chat.choose(name),
+
+    /**
+     * Where the chat's words may go, and the key behind the cloud side of that choice.
+     * The key is write-only over IPC: it lands in the Keychain-backed store and is never
+     * read back to a window — the settings pane learns "saved" from a boolean, not a key.
+     */
+    setAiEngine: (engine) => (saveSettings({ chatEngine: engine }), chat.recheck(), refresh()),
+    saveAiKey: async (key) => {
+      await saveKey(key)
+      chat.recheck()
+      say('cloud is ready — the chat now answers from it')
+      refresh()
+    },
+    forgetAiKey: async () => {
+      await forgetKey()
+      chat.recheck()
+      say('cloud key removed — answers stay on this Mac')
+      refresh()
+    },
 
     meetingStart: async ({ title } = {}) => {
       await meeting.start({ title })

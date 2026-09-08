@@ -191,7 +191,7 @@ export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
        * option it is attached to, and it pushed the real name out of a 152px select.
        */
       engineModel.append(
-        el('option', { value: entry.name, text: entry.name, selected: entry.name === model }),
+        el('option', { value: entry.name, text: entry.label ?? entry.name, selected: entry.name === model }),
       )
     }
     engineModel.value = available.some((entry) => entry.name === model) ? model : ''

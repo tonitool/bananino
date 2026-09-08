@@ -3,6 +3,8 @@ import test from 'node:test'
 import { isCloudModel, pickModel, streamChat, visibleSoFar } from '../src/main/meeting/llm.js'
 import { HISTORY_TURNS, SYSTEM, buildMessages, describeDay } from '../src/main/chat/prompt.js'
 import { createTools, kindOf } from '../src/main/chat/tools.js'
+import { chooseEngine } from '../src/main/chat/engine.js'
+import { streamChat as streamChatCloud } from '../src/main/chat/cloudStream.js'
 
 test('a reasoning scratchpad is hidden while it is still being written', () => {
   // The closed case is what stripThinking already handled; the open one is the streaming
@@ -158,6 +160,8 @@ test('an act that cannot be undone does not happen without a press', async () =>
       push_moco: 'needs-a-press',
       read_notes: 'read',
       read_clips: 'read',
+      read_calendar: 'read',
+      search_files: 'read',
       find_moco_task: 'read',
     },
   )
@@ -277,5 +281,129 @@ test('an Ollama cloud model is never picked by accident', () => {
   assert.equal(
     pickModel(installed, undefined, { prefer: 'gpt-oss:120b-cloud', allowCloud: true }),
     'gpt-oss:120b-cloud',
+  )
+})
+
+test('the engine decision is made from the mode and the key, never from the network', () => {
+  // 'cloud' without a key is refused rather than quietly local: where a sentence goes is
+  // the one thing this feature must never swap behind a user's back.
+  assert.equal(chooseEngine({ mode: 'cloud', hasCloudKey: false }), 'needs-key')
+  assert.equal(chooseEngine({ mode: 'cloud', hasCloudKey: true }), 'cloud')
+  assert.equal(chooseEngine({ mode: 'local', hasCloudKey: true }), 'local')
+  assert.equal(chooseEngine({ mode: 'auto', hasCloudKey: true }), 'cloud')
+  assert.equal(chooseEngine({ mode: 'auto', hasCloudKey: false }), 'local')
+})
+
+test('a cloud answer survives a frame that splits a tool call in half', async () => {
+  // OpenRouter sends tool arguments as JSON fragments across deltas. Assembling them per
+  // stream index is the whole game: a half-read string parsed eagerly drops the call.
+  const frames = [
+    { choices: [{ delta: { content: 'Looking that' } }] },
+    {
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { index: 0, function: { name: 'search_files', arguments: '{"que' } },
+            ],
+          },
+        },
+      ],
+    },
+    { choices: [{ delta: { content: ' up…' } }] },
+    {
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { index: 0, function: { arguments: 'ry": "spec"}' } },
+            ],
+          },
+        },
+      ],
+    },
+  ]
+  const sse =
+    frames.map((frame) => `data: ${JSON.stringify(frame)}`).join('\n\n') + '\n\ndata: [DONE]\n\n'
+
+  const bytes = new TextEncoder().encode(sse)
+  const original = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    const body = JSON.parse(options.body)
+    assert.equal(body.model, 'anthropic/claude-sonnet-4.5')
+    assert.equal(options.headers.Authorization, 'Bearer sk-test')
+    assert.ok(Array.isArray(body.tools))
+    return {
+      ok: true,
+      body: {
+        async *[Symbol.asyncIterator]() {
+          // Cut the stream mid-frame, mid-token: exactly where naive line parsing dies.
+          yield bytes.slice(0, 60)
+          yield bytes.slice(60)
+        },
+      },
+    }
+  }
+  try {
+    const seen = []
+    const answer = await streamChatCloud({
+      url: 'https://openrouter.invalid/v1/chat/completions',
+      key: 'sk-test',
+      model: 'anthropic/claude-sonnet-4.5',
+      messages: [],
+      tools: [{ type: 'function', function: { name: 'search_files' } }],
+      onText: (text) => seen.push(text),
+    })
+    assert.equal(answer.text, 'Looking that up…')
+    // The two fragments assemble into one whole call, and a valid one:
+    assert.deepEqual(answer.calls, [{ name: 'search_files', arguments: '{"query": "spec"}' }])
+    assert.deepEqual(JSON.parse(answer.calls[0].arguments), { query: 'spec' })
+    assert.ok(seen.length > 1, `streamed in pieces, got ${seen.length} update(s)`)
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
+test('read_calendar answers from the snapshot the panel is already showing', async () => {
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({
+      calendar: {
+        connected: true,
+        upcoming: [
+          { id: 'a', title: 'Weekly sync', startMs: Date.UTC(2026, 8, 9, 12, 30), endMs: 0, joinUrl: 'https://meet.google.com/x', location: '' },
+        ],
+      },
+    }),
+    readNotes: async () => [],
+    searchTasks: () => [],
+  })
+
+  const answer = await tools.read_calendar.read({})
+  assert.match(answer, /Weekly sync/)
+  assert.match(answer, /14:30|12:30/) // the hour, whichever zone the test runner sits in
+  assert.match(answer, /join link/)
+
+  const unconnected = createTools({
+    actions: {},
+    getSnapshot: () => ({ calendar: { connected: false } }),
+    readNotes: async () => [],
+    searchTasks: () => [],
+  })
+  assert.match(await unconnected.read_calendar.read({}), /No calendar is connected/)
+})
+
+test('search_files hands paths back whole', async () => {
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    searchFiles: async () => ['/Users/me/Desktop/spec sketch final v3.pdf'],
+  })
+
+  assert.equal(
+    await tools.search_files.read({ query: 'spec sketch' }),
+    '/Users/me/Desktop/spec sketch final v3.pdf',
   )
 })

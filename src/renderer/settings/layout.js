@@ -8,6 +8,7 @@ import { el, svgIcon } from '../ui/dom.js'
 
 /* Stroked 24x24 glyphs in the sidebar's colourful chips, as System Settings draws them. */
 const ICONS = {
+  ai: [['path', { d: 'M12 3.5 14.1 9.1 19.7 11.2l-5.6 2.1L12 18.9l-2.1-5.6-5.6-2.1 5.6-2.1Z' }]],
   buddy: [
     ['circle', { cx: '12', cy: '12', r: '8.2' }],
     ['circle', { cx: '8.8', cy: '10.2', r: '0.4', fill: 'currentColor' }],

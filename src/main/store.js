@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  CHAT_ENGINES,
   CHARACTER_MENU,
   CORNERS,
   COSTUME_MENU,
@@ -33,8 +34,7 @@ const isActiveTimer = (value) =>
  * Nothing here is trusted: the file sits in a folder the user can open and edit, and a
  * bad value would otherwise reach BrowserWindow or the filesystem directly.
  */
-const sanitize = (raw) => ({
-  sizeKey: Object.hasOwn(WINDOW_SIZES, raw?.sizeKey) ? raw.sizeKey : DEFAULT_SIZE_KEY,
+const sanitize = (raw) => ({  sizeKey: Object.hasOwn(WINDOW_SIZES, raw?.sizeKey) ? raw.sizeKey : DEFAULT_SIZE_KEY,
   corner: Object.hasOwn(CORNERS, raw?.corner) ? raw.corner : DEFAULT_CORNER,
   dataDir: typeof raw?.dataDir === 'string' && raw.dataDir ? raw.dataDir : defaultDataDir(),
   alwaysVisible: raw?.alwaysVisible === true,
@@ -51,6 +51,8 @@ const sanitize = (raw) => ({
    * can be deleted between launches.
    */
   chatModel: typeof raw?.chatModel === 'string' ? raw.chatModel.slice(0, 120) : '',
+  /* Where the chat's words may go: auto prefers the cloud key when one is saved. */
+  chatEngine: CHAT_ENGINES.includes(raw?.chatEngine) ? raw.chatEngine : 'auto',
   meetingUseMic: raw?.meetingUseMic !== false,
   costume: COSTUME_MENU.some(([name]) => name === raw?.costume) ? raw.costume : 'none',
   character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,

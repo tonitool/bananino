@@ -41,10 +41,17 @@ Only these, and only when you ask:
   address in the link (Microsoft's servers) — no analytics middleman, and the read is
   one-way.
 - **Update checks** — if a repository is configured, the app asks the GitHub Releases API
-  whether a newer version exists. It sends no information about you.
+  for a newer version and downloads it when one exists. It sends no information about you.
 - **Ask an assistant** — right-clicking a note and choosing ChatGPT, Claude or Gemini opens
   that service in your browser with the note's text. That text then reaches a third party,
   under their privacy policy, and only for the note you picked.
+- **Chat in the cloud** — by default the chat answers from a model on your Mac (Ollama)
+  and nothing leaves. If you save your own OpenRouter key in Settings → AI and the engine
+  is the cloud, the chat instead sends that provider your question, the day's summary, and
+  whatever its tools looked up to answer it — notes, clipboard history, calendar entries,
+  file paths. The engine line under the chat always says which one is answering, and
+  **This Mac only** keeps every word home. The key itself is encrypted with macOS
+  `safeStorage` (the login Keychain) and is write-only from the app's side.
 
 Nothing else is transmitted. There is no crash reporting and no usage tracking.
 

@@ -257,6 +257,11 @@ export const IPC = Object.freeze({
   settingsChooseFolder: 'settings:choose-folder',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
+
+  /* The AI engine: where the chat's words may go, and the cloud key behind it. */
+  aiSetEngine: 'ai:set-engine',
+  aiSaveKey: 'ai:save-key',
+  aiForgetKey: 'ai:forget-key',
 })
 
 /*
@@ -342,6 +347,25 @@ export const OPENROUTER = Object.freeze({
   model: 'anthropic/claude-3.5-sonnet',
   timeoutMs: 120_000,
 })
+
+/**
+ * The chat's cloud catalogue, reachable when the user has saved their own OpenRouter key
+ * (BYOK) — see src/main/meeting/openrouter.js. Ids are OpenRouter's; the label is what
+ * the model picker shows. Chat needs providers with tool calling, so this list is curated
+ * rather than anything-goes: a model that cannot call a tool answers "turn on the timer"
+ * with a paragraph about buttons.
+ */
+export const CLOUD_CHAT_MODELS = Object.freeze([
+  { name: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet' },
+  { name: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku' },
+  { name: 'openai/gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { name: 'google/gemini-2.5-flash', label: 'Gemini Flash' },
+])
+
+export const DEFAULT_CLOUD_CHAT_MODEL = CLOUD_CHAT_MODELS[0].name
+
+/** Where the chat's words are allowed to go. 'auto' = cloud when a key is saved, else local. */
+export const CHAT_ENGINES = Object.freeze(['auto', 'local', 'cloud'])
 
 /*
  * The published-calendar feed: one HTTPS read per poll, no OAuth anywhere. The link is a

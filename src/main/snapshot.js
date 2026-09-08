@@ -18,7 +18,7 @@ const toClipPreview = (clip) => ({
  * One object describing everything the panel renders. Pushing a whole snapshot on every
  * change keeps the renderer free of its own copy of the truth.
  */
-export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar, version }) => {
+export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar, version, ai }) => {
   const { dataDir } = settings
 
   const [today, notesToday, recentNotes] = await Promise.all([
@@ -30,6 +30,11 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
   return {
     // For the settings window's About pane; handed in so this module stays electron-free.
     app: { version: version ?? null },
+    /**
+     * The settings window's AI pane: where the chat may go, and whether a cloud key exists
+     * — the key itself is never in here, only the fact of it.
+     */
+    ai: ai ?? { engine: 'auto', hasCloudKey: false, cloudModel: '' },
     timer: settings.activeTimer,
     recentTasks: settings.recentTasks,
     bindings: settings.taskBindings,

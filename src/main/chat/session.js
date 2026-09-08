@@ -1,5 +1,7 @@
-import { CHAT } from '../constants.js'
+import { CHAT, CLOUD_CHAT_MODELS, DEFAULT_CLOUD_CHAT_MODEL } from '../constants.js'
 import { LlmUnavailable, checkOllama, streamChat } from '../meeting/llm.js'
+import { streamChat as streamChatCloud } from '../meeting/openrouter.js'
+import { chooseEngine } from './engine.js'
 import { buildMessages } from './prompt.js'
 import { createTools, toolSchemas } from './tools.js'
 
@@ -7,13 +9,13 @@ import { createTools, toolSchemas } from './tools.js'
  * The conversation, and the only place that decides what the panel's chat is allowed to
  * know or do.
  *
- * Ollama only. There is an OpenRouter path in this app already — the meeting summariser
- * can fall back to it with a saved key — and the chat deliberately does not use it. A
- * summary is one request the user asked for and was told about; a conversation is an open
- * pipe to whatever you happen to type at your desk, including the day's notes and the
- * clipboard that travel in the prompt.
- *
- * The Ollama client itself lives in meeting/llm.js, which is where it was first needed.
+ * Two engines, one rule: the engine line under the thread always says where the words go.
+ * Local is Ollama; cloud is OpenRouter with the user's own key (BYOK), which exists because
+ * a chat without a key is a chat that does nothing on a machine without Ollama. The key is
+ * never embedded in the app: a distributed binary carrying one would be a leaked budget,
+ * and the payment-gate question for selling this is a *backend* question, not a client one.
+ * Tool results travel with the engine — under cloud, a clipboard search's findings leave
+ * the Mac too; the caption under the model picker says so.
  *
  * On acting: tools.js holds the rule and the reasons. Here it is only enforced — a tool
  * with an `undo` is run and gets a card with an Undo pill, one without is staged as a
@@ -41,6 +43,8 @@ export const createChat = ({
   searchTasks,
   getModel,
   setModel,
+  getEngineMode = () => 'auto',
+  hasCloudKey = async () => false,
 }) => {
   const tools = createTools({ actions, getSnapshot, readNotes, readClips, searchTasks })
   const schemas = toolSchemas(tools)
@@ -78,13 +82,50 @@ export const createChat = ({
   const publish = () => onState(state())
 
   /**
-   * Whether there is a model to talk to. Checked at boot and again whenever a send fails,
-   * rather than on a timer: `ollama serve` starting or stopping is a rare event, and a
-   * poll every few seconds would keep a laptop's radio awake for nothing.
+   * Whether there is a model to talk to, and which machine answers. Checked at boot and
+   * again whenever a send fails, rather than on a timer: `ollama serve` starting or a key
+   * being pasted are rare events, and a poll every few seconds would keep a laptop's radio
+   * awake for nothing.
+   *
+   * The mode is a setting the Settings window's AI pane owns: 'auto' picks the cloud when
+   * a key is saved and Ollama otherwise, 'local' never sends a word out, and 'cloud' is
+   * refused — not silently downgraded — when there is no key, because quietly swapping
+   * where a sentence goes is exactly the thing this feature exists not to do.
    */
   const checkEngine = async () => {
     engine = { ...engine, checking: true }
     publish()
+
+    const chosen = chooseEngine({ mode: getEngineMode(), hasCloudKey: await hasCloudKey() })
+
+    if (chosen === 'needs-key') {
+      engine = {
+        ok: false,
+        checking: false,
+        reason: 'Cloud is chosen, but no OpenRouter key is saved.',
+        hint: 'Settings → AI → paste your key',
+        available: CLOUD_CHAT_MODELS,
+      }
+      publish()
+      return engine
+    }
+
+    if (chosen === 'cloud') {
+      const preferred = getModel()
+      const model = CLOUD_CHAT_MODELS.some(({ name }) => name === preferred)
+        ? preferred
+        : DEFAULT_CLOUD_CHAT_MODEL
+      engine = {
+        ok: true,
+        checking: false,
+        provider: 'openrouter',
+        model,
+        isLocal: false,
+        available: CLOUD_CHAT_MODELS,
+      }
+      publish()
+      return engine
+    }
 
     /*
      * `allowCloud` is granted only by the user having named a cloud model themselves. The
@@ -243,7 +284,8 @@ export const createChat = ({
 
       let calls = []
       try {
-        const answer = await streamChat({
+        const ask = engine.provider === 'openrouter' ? streamChatCloud : streamChat
+        const answer = await ask({
           model: engine.model,
           messages: buildMessages({ history: messages.slice(0, -1), snapshot: getSnapshot() }),
           tools: schemas,
@@ -289,7 +331,7 @@ export const createChat = ({
       remember({ role: 'user', text: question })
       remember({
         role: 'assistant',
-        text: `${engine.reason ?? 'No local model is available.'}${
+        text: `${engine.reason ?? 'No model is available right now.'}${
           engine.hint ? ` Try: ${engine.hint}` : ''
         }`,
         failed: true,
@@ -332,6 +374,8 @@ export const createChat = ({
     state,
     /** Called when the view opens, so a model started after launch is picked up. */
     refresh: () => (engine.ok || engine.checking ? publish() : void checkEngine()),
+    /** Key pasted, key removed, engine mode flipped — where the words go has changed. */
+    recheck: () => void checkEngine(),
     send,
     act,
     stop: () => inFlight?.abort(),

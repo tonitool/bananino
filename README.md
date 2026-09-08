@@ -107,8 +107,11 @@ in the keychain once:
 ```bash
 xcrun notarytool store-credentials bananino-notary \
   --apple-id 'you@example.com' --team-id '6R7VM3W44A' --password 'xxxx-xxxx-xxxx-xxxx'
-APPLE_KEYCHAIN_PROFILE=bananino-notary npm run dist -- --config.mac.notarize=true
+APPLE_KEYCHAIN_PROFILE=bananino-notary npm run dist
 ```
+
+(The profile takes the place of the three APPLE_* variables; notarization is what they're
+for, so it stays on whenever a profile is named.)
 
 The release workflow signs when — and only when — the certificate and all three
 notarytool credentials below are set on the repository. Half of them is no better than

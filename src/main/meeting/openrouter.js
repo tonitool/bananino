@@ -3,6 +3,7 @@ import { readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { OPENROUTER } from '../constants.js'
 import { LlmUnavailable } from './llm.js'
+import { streamChat as streamChatCloud } from '../chat/cloudStream.js'
 
 const FILE_NAME = 'openrouter.key'
 const filePath = () => join(app.getPath('userData'), FILE_NAME)
@@ -30,6 +31,23 @@ export const readKey = async () => {
 }
 
 export const forgetKey = () => rm(filePath(), { force: true })
+
+/**
+ * A streamed chat turn against OpenRouter, with tools — the engine the *chat* uses once a
+ * key is saved. Same return shape as the Ollama twin in llm.js `{ text, calls }`; the
+ * actual wire work lives in chat/cloudStream.js, which is electron-free and testable.
+ * This file's part is the key: read it, or refuse before a packet leaves the machine.
+ */
+export const streamChat = async (args) => {
+  const key = await readKey()
+  if (!key) throw new LlmUnavailable('No OpenRouter key is saved.')
+  return streamChatCloud({
+    url: OPENROUTER.url,
+    key,
+    signal: args.signal ?? AbortSignal.timeout(OPENROUTER.timeoutMs),
+    ...args,
+  })
+}
 
 /**
  * One chat turn against OpenRouter.

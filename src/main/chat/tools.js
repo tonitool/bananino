@@ -45,7 +45,14 @@ const string = (description) => ({ type: 'string', description })
  * node. Built as a function so the session can exist before the actions it drives — app.js
  * wires them in that order.
  */
-export const createTools = ({ actions, getSnapshot, readNotes, readClips, searchTasks }) => {
+/** One event as one line a model can quote: 'Tue Sep 09 14:30 — Weekly sync'. */
+const formatEvent = (event) => {
+  const start = new Date(event.startMs)
+  const when = `${start.toDateString().slice(0, 10)} ${start.toTimeString().slice(0, 5)}`
+  return `${when} — ${event.title}${event.joinUrl ? ' · has a join link' : ''}${event.location ? ` · ${event.location}` : ''}`
+}
+
+export const createTools = ({ actions, getSnapshot, readNotes, readClips, searchTasks, searchFiles }) => {
   /**
    * A binding only ever comes from certainty: the task named *is* a catalogue entry, or
    * the query the model passed has exactly one answer. Anything fuzzier books to the
@@ -255,6 +262,48 @@ export const createTools = ({ actions, getSnapshot, readNotes, readClips, search
             : 'The clipboard history is empty.'
         }
         return clips.map((clip) => clip.text.replace(/\s+/g, ' ').slice(0, 160)).join('\n—\n')
+      },
+    },
+
+    /**
+     * The connected calendar, read back — the feed is fetched ahead of time, so this is
+     * the snapshot's own list rather than another network call.
+     */
+    read_calendar: {
+      schema: schema(
+        'read_calendar',
+        'List coming and just-started meetings with their times: next few events, plus anything that started within the last 24 hours. Use for "what is next / what did I miss" questions.',
+      ),
+      read: () => {
+        const calendar = getSnapshot().calendar
+        if (!calendar?.connected) {
+          return 'No calendar is connected. The user can add a published calendar link in the panel, Cal tab.'
+        }
+        const events = calendar.upcoming ?? []
+        if (events.length === 0) return 'Nothing is on the calendar in the next day or so.'
+        return events.map(formatEvent).join('\n')
+      },
+    },
+
+    /**
+     * Spotlight over the user's own files — "search file on local" asked aloud. Paths come
+     * back whole, because a path you cannot open is a path not found. The tool is a read:
+     * it looks, it never opens, moves or deletes.
+     */
+    search_files: {
+      schema: schema(
+        'search_files',
+        'Search files on this Mac by name or content words (Spotlight). Returns the full paths of the best matches, newest-modified first. Use it when the user asks for a file or a path.',
+        { query: string('File name or content words to look for, e.g. "spec sketch final".') },
+        ['query'],
+      ),
+      read: async ({ query }) => {
+        const words = String(query ?? '').trim()
+        if (!words) return 'No search words were given.'
+        if (!searchFiles) return 'File search is not available here.'
+        const paths = await searchFiles(words, 10)
+        if (paths.length === 0) return `No files match "${words}".`
+        return paths.join('\n')
       },
     },
 

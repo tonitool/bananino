@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { CHAT, CORNERS, DANCE_MENU, IPC, WINDOW_SIZES } from './constants.js'
+import { CHAT, CHAT_ENGINES, CORNERS, DANCE_MENU, IPC, WINDOW_SIZES } from './constants.js'
 
 const asString = (value) => (typeof value === 'string' ? value : '')
 
@@ -131,6 +131,19 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
       if (DANCE_MENU.some(([known]) => known === id)) actions.setDance(id)
     },
     [IPC.openReleases]: () => actions.openReleases(),
+
+    /*
+     * The key crosses here once, write-only: it is validated for shape, handed to the
+     * Keychain-backed store, and no channel ever reads it back to a window.
+     */
+    [IPC.aiSetEngine]: (_e, mode) => {
+      if (CHAT_ENGINES.includes(asString(mode))) actions.setAiEngine(asString(mode))
+    },
+    [IPC.aiSaveKey]: (_e, key) => {
+      const value = asString(key).trim()
+      if (value.length >= 8) void actions.saveAiKey(value)
+    },
+    [IPC.aiForgetKey]: () => void actions.forgetAiKey(),
 
   }
 

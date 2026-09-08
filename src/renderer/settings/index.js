@@ -1,6 +1,7 @@
 import './settings.css'
 import { el } from '../ui/dom.js'
 import { createLayout } from './layout.js'
+import { createAiPane } from './panes/ai.js'
 import { createBuddyPane } from './panes/buddy.js'
 import { createWardrobePane } from './panes/wardrobe.js'
 import { createBehaviourPane } from './panes/behaviour.js'
@@ -43,6 +44,11 @@ function boot(bridge) {
     chooseDataFolder: () => bridge.chooseDataFolder(),
   })
   const about = createAboutPane({ openReleases: () => bridge.openReleases() })
+  const ai = createAiPane({
+    setEngine: (mode) => bridge.setAiEngine(mode),
+    saveKey: (key) => bridge.saveAiKey(key),
+    forgetKey: () => bridge.forgetAiKey(),
+  })
 
   const sections = [
     {
@@ -58,6 +64,13 @@ function boot(bridge) {
       blurb: 'What it wears — one look dresses cap and shirt together.',
       tint: 'var(--tint-blush)',
       view: wardrobe,
+    },
+    {
+      id: 'ai',
+      label: 'AI',
+      blurb: 'Where the chat’s words go, and whose key pays for the cloud.',
+      tint: 'var(--tint-coral)',
+      view: ai,
     },
     {
       id: 'behaviour',

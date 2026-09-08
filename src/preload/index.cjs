@@ -71,6 +71,10 @@ const IPC = {
   settingsChooseFolder: 'settings:choose-folder',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
+
+  aiSetEngine: 'ai:set-engine',
+  aiSaveKey: 'ai:save-key',
+  aiForgetKey: 'ai:forget-key',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -151,6 +155,11 @@ contextBridge.exposeInMainWorld('pet', {
   chooseDataFolder: () => ipcRenderer.send(IPC.settingsChooseFolder),
   setDance: (name) => ipcRenderer.send(IPC.setDance, name ?? null),
   openReleases: () => ipcRenderer.send(IPC.openReleases),
+
+  /* The AI engine (settings window → main). The key ever travels one way: in. */
+  setAiEngine: (mode) => ipcRenderer.send(IPC.aiSetEngine, mode),
+  saveAiKey: (key) => ipcRenderer.send(IPC.aiSaveKey, key),
+  forgetAiKey: () => ipcRenderer.send(IPC.aiForgetKey),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),
