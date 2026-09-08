@@ -1,6 +1,6 @@
 {
   "name": "bananino",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A 3D desktop buddy for macOS that takes notes, tracks time, and remembers your clipboard.",
   "type": "module",
   "main": "src/main/index.js",
