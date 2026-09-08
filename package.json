@@ -116,5 +116,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/tonitool/bananino.git"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

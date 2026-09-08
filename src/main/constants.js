@@ -169,9 +169,10 @@ export const DANCE_MENU = Object.freeze([
 ])
 
 /**
- * Set this to your repository to enable update checks. Releases are read from the GitHub
- * Releases API and the app offers the download — it cannot install one, because
- * Squirrel.Mac requires a code-signed app and this one is not signed yet.
+ * Where updates come from. electron-builder bakes this into the build's feed config, and
+ * the updater downloads and installs new versions itself — Squirrel.Mac, which does the
+ * swapping, needs the app signed, so this only became an installer once the app carried
+ * a Developer ID. Forks without signing get a quiet no-op instead.
  */
 export const UPDATE_REPOSITORY = 'https://github.com/tonitool/bananino'
 

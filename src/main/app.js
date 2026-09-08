@@ -28,7 +28,7 @@ import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { createMocoSync } from './moco/sync.js'
-import { startUpdateNotifier } from './update/notifier.js'
+import { startAutoUpdater } from './update/updater.js'
 import { createNowPlaying } from './music/nowPlaying.js'
 import {
   appendNote,
@@ -748,13 +748,37 @@ export const startApp = () => {
     ]),
   )
 
-  const updates = startUpdateNotifier({
+  const clearPendingUpdate = () => {
+    pendingUpdate = null
+    tray.refresh()
+  }
+
+  let manualCheckWaiting = false
+
+  /*
+   * The app now installs its own updates: Squirrel.Mac swaps a signed app, and this one
+   * is signed. Found → fetched quietly in the background → a restart away, with the old
+   * releases page kept as the escape hatch if that machinery ever says no.
+   */
+  const updates = startAutoUpdater({
     repositoryUrl: UPDATE_REPOSITORY,
-    onUpdateAvailable: (update) => {
-      pendingUpdate = update
+    // --update-log=<path> writes the updater's story to a file: packaged apps lose stdout.
+    logFile: process.argv.find((arg) => arg.startsWith('--update-log='))?.split('=')[1] ?? null,
+    onAvailable: (version) => {
+      manualCheckWaiting = false
+      pendingUpdate = { version, state: 'downloading' }
       react('hop')
-      say(`v${update.version} is out!`)
+      say(`v${version} is out — fetching it`)
       tray.refresh()
+    },
+    onDownloaded: (version) => {
+      pendingUpdate = { version, state: 'ready' }
+      say(`v${version} is here — restart Bananino when you like`, 'excited')
+      tray.refresh()
+    },
+    onNone: () => {
+      if (manualCheckWaiting) say('already the newest Bananino')
+      manualCheckWaiting = false
     },
   })
 

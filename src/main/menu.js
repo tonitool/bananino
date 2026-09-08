@@ -1,4 +1,5 @@
 import { Menu } from 'electron'
+import { updateMenuEntry } from './update/menuEntry.js'
 import {
   CORNERS,
   COSTUME_MENU,
