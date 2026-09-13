@@ -21,7 +21,7 @@
     <key>com.apple.security.device.audio-input</key>
     <true/>
 
-    <!-- Asking Music and Spotify what is playing, via osascript — see src/main/music. -->
+    <!-- Asking Music and Spotify what is playing, and working them, via osascript — see src/main/music. -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
   </dict>

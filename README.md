@@ -2,7 +2,9 @@
 
 A 3D banana buddy that lives in the corner of your Mac. Brush the corner with your cursor
 and it slides in; click it and it hands you a panel for **notes**, **fast time tracking**,
-and **clipboard history**. Everything is stored as plain files on your own disk.
+and **clipboard history** — and a **chat that does things on your Mac**: finds a file or an
+old note, searches your messages, changes the song. Everything is stored as plain files on
+your own disk.
 
 ![the character](resources/icon.png)
 
@@ -177,7 +179,7 @@ breaks. They are listed in the menu bar icon's menu too.
 
 ## The panel
 
-One view at a time — **Time · Note · Clips · Meet · Cal** — because a single screen holding
+One view at a time — **Chat · Time · Note · Clips · Meet · Cal** — because a single screen holding
 all of them left every part too small, and overlapping whenever one grew. A running timer is
 the one thing shown on every view, as a slim strip you can click to jump back to Time.
 **Settings** is not a view at all but its own window — right-click the character →
@@ -194,10 +196,52 @@ time, and the last few show underneath.
 **Clips** is your clipboard history: click a row to copy it back, `★` to pin it so it
 never ages out, `×` to forget it.
 
+**Chat** is where you ask for things in words. It answers from a model on your Mac
+(Ollama) or, if you save your own OpenRouter key in Settings → AI, from the cloud — the
+line under the thread always says which.
+
 The panel always opens *away* from the anchored corner — upwards from the bottom corners,
 downwards from the top ones — and the window's width never changes. Both are so that the
 character stays at exactly the same place on screen when the panel opens, instead of
 sliding out from under your cursor mid-click.
+
+## What the buddy can do for you
+
+The chat is not only an answer machine: it works the Mac in front of it. Ask in words and
+it uses a tool, rather than telling you which button to press.
+
+| Ask for | What happens |
+| --- | --- |
+| "track an hour on BIK, book it to the Creative Engine project" | Timer starts, bound to that MOCO task |
+| "note that the deck is due Friday" | Written into today's notes file |
+| "what did I write about the kickoff?" | Searches every past day's notes |
+| "find the spec sketch on my Mac" | Spotlight, full paths back |
+| "open it" | Opens the file — after you press the card |
+| "what did Anna text me about dinner?" | Searches the Messages history on this Mac |
+| "what did I copy earlier?" | Searches the clipboard history |
+| "skip this track" / "put on Hounds of Love" | Works Apple Music or Spotify, whichever is open |
+
+Two rules decide how each one happens, and they are the whole design:
+
+- **If it can be taken back, it just happens** — with an **Undo** pill on the card. A
+  started timer has written nothing yet; a saved note can be deleted again; a skipped track
+  is un-skipped by asking for the previous one.
+- **If it cannot, nothing happens until you press the card.** Stopping a timer writes to
+  the day's log, pushing sends to MOCO, opening a file opens it. None of those are done on
+  a model's say-so.
+
+Nothing here runs a shell command, deletes a file, or sends a message on your behalf, and
+the Mac's own permissions still apply: controlling the players asks for Automation the
+first time, and the Messages search stays empty until you add Bananino under **System
+Settings → Privacy & Security → Full Disk Access**.
+
+A few limits worth knowing rather than discovering:
+
+- Playing something *by name* is Apple Music only — Spotify's AppleScript can play a URI
+  but cannot search your library. Skip, pause and play work in both.
+- A player that is closed is never spoken to, so nothing launches Music behind your back.
+- Under the cloud engine, what a tool finds travels with your question — file paths, notes,
+  clips, message text. **This Mac only** in Settings → AI keeps every word home.
 
 ## Interacting with the character
 

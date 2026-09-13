@@ -41,12 +41,37 @@ export const createChat = ({
   readNotes,
   readClips,
   searchTasks,
+  searchFiles,
+  searchNotes,
+  searchMessages,
+  music,
+  openPath,
+  inspectPath,
   getModel,
   setModel,
   getEngineMode = () => 'auto',
   hasCloudKey = async () => false,
 }) => {
-  const tools = createTools({ actions, getSnapshot, readNotes, readClips, searchTasks })
+  /*
+   * Every reader and every way out to the Mac is handed in rather than imported: it keeps
+   * this module (and tools.js under it) free of electron and of the filesystem, and it
+   * makes the chat's whole reach visible in one argument list. `searchFiles` was once
+   * missing from exactly this call, which left the file-search tool permanently answering
+   * "not available here" while app.js was passing it in.
+   */
+  const tools = createTools({
+    actions,
+    getSnapshot,
+    readNotes,
+    readClips,
+    searchTasks,
+    searchFiles,
+    searchNotes,
+    searchMessages,
+    music,
+    openPath,
+    inspectPath,
+  })
   const schemas = toolSchemas(tools)
 
   /**

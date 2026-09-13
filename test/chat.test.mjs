@@ -1,10 +1,25 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { isCloudModel, pickModel, streamChat, visibleSoFar } from '../src/main/meeting/llm.js'
 import { HISTORY_TURNS, SYSTEM, buildMessages, describeDay } from '../src/main/chat/prompt.js'
 import { createTools, kindOf } from '../src/main/chat/tools.js'
 import { chooseEngine } from '../src/main/chat/engine.js'
 import { streamChat as streamChatCloud } from '../src/main/chat/cloudStream.js'
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+/** One track in the shape a player's reply is parsed into. */
+const track = (title, artist, playerLabel = 'Spotify') => ({
+  title,
+  artist,
+  playerLabel,
+  player: playerLabel === 'Spotify' ? 'spotify' : 'music',
+  position: 0,
+  duration: 200,
+})
 
 test('a reasoning scratchpad is hidden while it is still being written', () => {
   // The closed case is what stripThinking already handled; the open one is the streaming
@@ -162,6 +177,13 @@ test('an act that cannot be undone does not happen without a press', async () =>
       read_clips: 'read',
       read_calendar: 'read',
       search_files: 'read',
+      search_notes: 'read',
+      search_messages: 'read',
+      // Working the Mac: a skipped track is taken back by asking for the previous one,
+      // while an opened file cannot be un-opened and so waits for a press.
+      control_music: 'undoable',
+      play_music: 'undoable',
+      open_path: 'needs-a-press',
       find_moco_task: 'read',
     },
   )
@@ -406,4 +428,123 @@ test('search_files hands paths back whole', async () => {
     await tools.search_files.read({ query: 'spec sketch' }),
     '/Users/me/Desktop/spec sketch final v3.pdf',
   )
+})
+
+test('every reader app.js hands the chat reaches the tool that needs it', async () => {
+  // The regression: createChat took searchFiles from app.js and never passed it on to
+  // createTools, so search_files answered "not available here" for a whole release while
+  // the wiring beside it looked correct. Checked as text because session.js cannot be
+  // imported under plain node — it reaches electron through the LLM clients.
+  const source = await readFile(join(ROOT, 'src', 'main', 'chat', 'session.js'), 'utf8')
+  const forwarded = source.slice(source.indexOf('createTools({'), source.indexOf('const schemas'))
+  const app = await readFile(join(ROOT, 'src', 'main', 'app.js'), 'utf8')
+  const handedIn = app.slice(app.indexOf('const chat = createChat({'), app.indexOf('const timer ='))
+
+  for (const reader of [
+    'searchFiles',
+    'searchNotes',
+    'searchMessages',
+    'music',
+    'openPath',
+    'inspectPath',
+  ]) {
+    assert.ok(handedIn.includes(reader), `app.js never hands the chat ${reader}`)
+    assert.ok(forwarded.includes(reader), `session.js takes ${reader} but never forwards it`)
+  }
+})
+
+test('a skipped track is taken back by asking for the previous one', async () => {
+  const asked = []
+  const music = {
+    command: async (name) => {
+      asked.push(name)
+      return { player: 'Spotify', track: track('Suspended in Gaffa', 'Kate Bush') }
+    },
+    current: async () => null,
+    playNamed: async () => ({ failed: 'not asked for here' }),
+  }
+  const tools = createTools({ actions: {}, getSnapshot: () => ({}), readNotes: async () => [], searchTasks: () => [], music })
+
+  const outcome = await tools.control_music.run({ command: 'next' })
+  assert.match(outcome.title, /^Skipped ahead · Spotify/)
+  assert.match(outcome.told, /Skipped ahead on Spotify\. Now playing: Suspended in Gaffa — Kate Bush/)
+
+  // Undo is the opposite command, not a repeat of the same one.
+  await tools.control_music.undo(outcome)
+  assert.deepEqual(asked, ['next', 'previous'])
+})
+
+test('putting an album on says what it interrupted, because undo only pauses', async () => {
+  const asked = []
+  const music = {
+    command: async (name) => (asked.push(name), { player: 'Apple Music', track: null }),
+    current: async () => track('Cloudbusting', 'Kate Bush', 'Apple Music'),
+    playNamed: async (request) => (
+      asked.push(request), { player: 'Apple Music', track: track('Sun', 'Caribou', 'Apple Music') }
+    ),
+  }
+  const tools = createTools({ actions: {}, getSnapshot: () => ({}), readNotes: async () => [], searchTasks: () => [], music })
+
+  const outcome = await tools.play_music.run({ name: 'Swim', kind: 'album' })
+  assert.deepEqual(asked[0], { kind: 'album', name: 'Swim' })
+  assert.match(outcome.told, /Playing Sun — Caribou on Apple Music/)
+
+  // The Undo pill cannot restore a position no player will give back, so it says so
+  // rather than claiming to have put the previous track on again.
+  const undone = await tools.play_music.undo(outcome)
+  assert.equal(asked.at(-1), 'pause')
+  assert.match(undone, /Paused\. Before this, Cloudbusting — Kate Bush/)
+})
+
+test('a player that is closed refuses rather than being launched', async () => {
+  const music = {
+    command: async () => ({ failed: 'Neither Apple Music nor Spotify is open, so there is nothing to play.' }),
+    current: async () => null,
+    playNamed: async () => ({ failed: 'nope' }),
+  }
+  const tools = createTools({ actions: {}, getSnapshot: () => ({}), readNotes: async () => [], searchTasks: () => [], music })
+
+  assert.match((await tools.control_music.run({ command: 'play' })).failed, /Neither Apple Music nor Spotify is open/)
+  // And a command the model invented never reaches a player at all.
+  assert.match((await tools.control_music.run({ command: 'shuffle' })).failed, /not one of play, pause/)
+})
+
+test('opening a file is proposed against a path that exists, and only the press opens it', async () => {
+  const opened = []
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    openPath: async (path, options) => (opened.push([path, options]), { opened: true }),
+    inspectPath: async (path) => ({
+      exists: path.endsWith('spec.pdf'),
+      path,
+      name: 'spec.pdf',
+      directory: false,
+    }),
+  })
+
+  assert.match((await tools.open_path.propose({ path: '/Users/me/gone.txt' })).failed, /Nothing exists at/)
+
+  const proposal = await tools.open_path.propose({ path: '/Users/me/spec.pdf' })
+  assert.match(proposal.title, /^Open · spec\.pdf/)
+  assert.deepEqual(opened, [], 'proposing an open was enough to open it')
+
+  await tools.open_path.run({ path: '/Users/me/spec.pdf', reveal: true })
+  assert.deepEqual(opened, [['/Users/me/spec.pdf', { reveal: true }]])
+})
+
+test('locked messages hand back the reason, not an apology', async () => {
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    searchMessages: async () => ({ blocked: true, hint: 'Full Disk Access → add Bananino' }),
+  })
+
+  // "I cannot see your messages" with no reason is a dead end; the switch to flip is the
+  // only useful answer, so it travels to the model as the tool's result.
+  assert.match(await tools.search_messages.read({ query: 'dinner' }), /Full Disk Access/)
 })

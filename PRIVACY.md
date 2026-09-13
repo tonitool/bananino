@@ -30,6 +30,26 @@ It is encrypted with macOS `safeStorage` (the login Keychain), never written in 
 text, never logged. Outlook revokes it instantly when you unpublish, and **Disconnect
 calendar** deletes it here.
 
+## What the chat can read on this Mac
+
+When you ask the buddy for something, its tools can look at: your notes and time entries,
+the clipboard history, the connected calendar, your MOCO task list, file *names and paths*
+via Spotlight, and — only once you have granted Full Disk Access — the **Messages**
+history. Every one of those is a read: nothing is copied anywhere, and the results exist
+only in the chat thread, which **Clear** empties.
+
+Two of them are gated by macOS itself rather than by this app:
+
+- **Messages** is behind **Full Disk Access** (System Settings → Privacy & Security). Until
+  you add Bananino there, the search simply cannot open the database. The read is
+  `sqlite3 -readonly` against Apple's own file — never a write, never a copy.
+- **Apple Music and Spotify** are behind **Automation**, asked for the first time the buddy
+  looks at, or changes, what is playing. A player that is not already open is never spoken
+  to, so nothing launches in the background.
+
+What the chat *cannot* do: run a shell command, delete or move a file, or send a message.
+Opening a file is the furthest it reaches out, and only after you press the card.
+
 ## What leaves your Mac
 
 Only these, and only when you ask:
@@ -49,7 +69,8 @@ Only these, and only when you ask:
   and nothing leaves. If you save your own OpenRouter key in Settings → AI and the engine
   is the cloud, the chat instead sends that provider your question, the day's summary, and
   whatever its tools looked up to answer it — notes, clipboard history, calendar entries,
-  file paths. The engine line under the chat always says which one is answering, and
+  file paths, and the text of any message it found. The engine line under the chat always
+  says which one is answering, and
   **This Mac only** keeps every word home. The key itself is encrypted with macOS
   `safeStorage` (the login Keychain) and is write-only from the app's side.
 

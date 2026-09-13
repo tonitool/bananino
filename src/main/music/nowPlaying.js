@@ -1,31 +1,12 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { PLAYERS, parseRunning, parseTrack, runningScript, trackScript } from './players.js'
+import { NOT_AUTHORISED, osascript } from './osascript.js'
 import { fetchArtwork } from './artwork.js'
-
-const run = promisify(execFile)
 
 /*
  * A pause should register quickly, but each poll spawns osascript (~200ms of work), so
  * this is a compromise: about 5% duty rather than a lag you notice.
  */
 const POLL_INTERVAL_MS = 4000
-const SCRIPT_TIMEOUT_MS = 5000
-
-/** macOS's error when Automation permission has not been granted for an app. */
-const NOT_AUTHORISED = /-1743|Not authorized/i
-
-/** osascript takes one `-e` per line, which keeps the script off the filesystem. */
-const osascript = async (script) => {
-  const args = script
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => ['-e', line])
-
-  const { stdout } = await run('osascript', args, { timeout: SCRIPT_TIMEOUT_MS })
-  return stdout
-}
 
 /**
  * Polls Spotify and Apple Music for what is playing.

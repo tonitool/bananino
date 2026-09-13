@@ -70,7 +70,7 @@
       ],
       "extendInfo": {
         "LSUIElement": true,
-        "NSAppleEventsUsageDescription": "Bananino asks Music and Spotify what is playing, so it can show the track on your desktop.",
+        "NSAppleEventsUsageDescription": "Bananino asks Music and Spotify what is playing, so it can show the track on your desktop — and plays, pauses or skips a track when you ask it to.",
         "NSAudioCaptureUsageDescription": "Bananino records what your meeting participants say, so it can transcribe the meeting on this Mac.",
         "NSMicrophoneUsageDescription": "Bananino records your voice during a meeting, so it can transcribe the meeting on this Mac."
       },

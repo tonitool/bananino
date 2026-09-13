@@ -28,11 +28,17 @@ import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { execFile } from 'node:child_process'
+import { stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
 import { forgetKey, readKey, saveKey } from './meeting/openrouter.js'
 import { createMocoSync } from './moco/sync.js'
 import { startAutoUpdater } from './update/updater.js'
 import { createNowPlaying } from './music/nowPlaying.js'
+import { createMusicControl } from './music/control.js'
+import { osascript } from './music/osascript.js'
+import { FULL_DISK_ACCESS_HINT, formatRow, searchMessages } from './messages/search.js'
 import {
   appendNote,
   deleteNote,
@@ -44,7 +50,8 @@ import { AI_TARGETS, buildHandoff } from './ai/handoff.js'
 import { appendManualTimeEntry } from './storage/timeLog.js'
 import { describeMinutes, parseDuration } from './storage/duration.js'
 import { clearUnpinned, removeClip, searchClips, togglePin } from './storage/clips.js'
-import { ensureDir } from './storage/paths.js'
+import { ensureDir, notesDir } from './storage/paths.js'
+import { searchNotes } from './storage/noteSearch.js'
 import { formatMinutes } from './storage/dates.js'
 import {
   maybeClickSelector,
@@ -59,6 +66,17 @@ import {
   maybeSnapshotSettings,
   maybeTap,
 } from './devTools.js'
+
+/**
+ * `~/Desktop/spec.pdf` as a path the filesystem knows.
+ *
+ * A model writes a path the way a person says one, and `~` is a shell's convention rather
+ * than a real directory — expanded here so a tilde path is opened instead of refused.
+ */
+const expandHome = (value) => {
+  const path = String(value ?? '').trim()
+  return path === '~' || path.startsWith('~/') ? join(homedir(), path.slice(1)) : path
+}
 
 /** Dates arrive from the panel as YYYY-MM-DD; midday avoids every timezone edge. */
 const parseIsoDate = (value) => {
@@ -175,6 +193,13 @@ export const startApp = () => {
     say,
   })
 
+  /*
+   * Watching the players and working them are kept apart on purpose: the poller must never
+   * launch anything, and a command must never be swallowed by a poll's error handling.
+   * They share only the osascript runner and the rule about not speaking to a closed app.
+   */
+  const musicControl = createMusicControl({ osascript })
+
   const music = createNowPlaying({
     isEnabled: () => settings.showNowPlaying,
     onChange: () => void pushSnapshot(),
@@ -212,9 +237,11 @@ export const startApp = () => {
     onState: (state) => send(IPC.chatState, state),
     /*
      * Read lazily, because the chat exists before the actions it drives. Everything the
-     * buddy can do it does through these — the very same calls the panel's buttons make —
-     * so there is no path the chat can take that the UI does not already have, and a
-     * timer it starts hops and toasts exactly as a clicked one does.
+     * buddy does to your *records* it does through these — the very same calls the panel's
+     * buttons make — so there is no path the chat can take through your time, notes or
+     * MOCO queue that the UI does not already have, and a timer it starts hops and toasts
+     * exactly as a clicked one does. Working the Mac around you (the players, opening a
+     * file) has no button to go through and is handed in separately below.
      */
     actions: {
       startTimer: (task, binding, description) => actions.startTimer(task, binding, description),
@@ -246,6 +273,48 @@ export const startApp = () => {
       } catch (error) {
         console.error('[app] file search failed:', error.message)
         return []
+      }
+    },
+    // The notes the user already owns, across every day rather than only today's file.
+    searchNotes: (query, limit) =>
+      searchNotes({ dir: notesDir(settings.dataDir), query, limit }).catch((error) => {
+        console.error('[app] note search failed:', error.message)
+        return []
+      }),
+    /*
+     * Messages, read-only and only ever as lines. The rows never leave this function as
+     * rows: what the chat gets back is the same one-line-per-hit shape a clip search
+     * returns, so a tool result cannot quietly become a database dump.
+     */
+    searchMessages: async (query, limit) => {
+      const outcome = await searchMessages({ query, limit })
+      if (outcome.blocked) return { blocked: true, hint: FULL_DISK_ACCESS_HINT }
+      if (outcome.failed) return { failed: outcome.failed }
+      return { lines: outcome.messages.map(formatRow) }
+    },
+    music: musicControl,
+    /*
+     * Opening is handed to macOS itself — the same call the Finder makes — rather than to
+     * a shell. `open` with a crafted string is a command; shell.openPath is a path and
+     * nothing else, which is the whole reason this is the only way out to the desktop.
+     */
+    openPath: async (path, { reveal } = {}) => {
+      const wanted = expandHome(path)
+      if (reveal) {
+        shell.showItemInFolder(wanted)
+        return { opened: true }
+      }
+      const error = await shell.openPath(wanted)
+      return error ? { failed: error } : { opened: true }
+    },
+    inspectPath: async (path) => {
+      const wanted = expandHome(path)
+      const found = await stat(wanted).catch(() => null)
+      return {
+        exists: found !== null,
+        path: wanted,
+        name: basename(wanted),
+        directory: Boolean(found?.isDirectory()),
       }
     },
   })

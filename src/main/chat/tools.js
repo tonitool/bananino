@@ -1,4 +1,5 @@
 import { parseDuration } from '../storage/duration.js'
+import { INVERSE_COMMAND, PLAY_KINDS, describeTrack } from '../music/control.js'
 
 /**
  * What the buddy is allowed to do, and the rule that decides how.
@@ -21,9 +22,16 @@ import { parseDuration } from '../storage/duration.js'
  *
  * `read` tools are neither: they only look, so they run without a card at all.
  *
- * Every doing tool goes through the same `actions` the buttons call, so the chat cannot
- * take a path the UI does not have — and the buddy reacts and the panel refreshes exactly
- * as if you had clicked it yourself.
+ * Every tool that touches *your records* — time, notes, MOCO — goes through the same
+ * `actions` the buttons call, so the chat cannot take a path the UI does not have, and the
+ * buddy reacts and the panel refreshes exactly as if you had clicked it yourself.
+ *
+ * The tools that work the Mac around you — the music players, opening a file — have no
+ * button to go through, because there is no record of yours for them to write. They are
+ * still held to the same rule: skipping a track is undoable because asking for the
+ * previous one takes it back, and opening a file is not, so it waits for a press. What
+ * none of them do is reach further than the thing asked for: nothing here runs a shell
+ * command, deletes a file, or sends a message on your behalf.
  */
 
 /** How the tools are described to the model. Ollama takes OpenAI-shaped function schemas. */
@@ -37,6 +45,14 @@ const schema = (name, description, properties = {}, required = []) => ({
 })
 
 const string = (description) => ({ type: 'string', description })
+
+/** How each transport command reads on its card, past tense — the act already happened. */
+const TRANSPORT_TITLES = Object.freeze({
+  play: 'Playing',
+  pause: 'Paused',
+  next: 'Skipped ahead',
+  previous: 'Skipped back',
+})
 
 /**
  * `actions` is app.js's action set, and the reads are handed in beside it rather than
@@ -52,7 +68,19 @@ const formatEvent = (event) => {
   return `${when} — ${event.title}${event.joinUrl ? ' · has a join link' : ''}${event.location ? ` · ${event.location}` : ''}`
 }
 
-export const createTools = ({ actions, getSnapshot, readNotes, readClips, searchTasks, searchFiles }) => {
+export const createTools = ({
+  actions,
+  getSnapshot,
+  readNotes,
+  readClips,
+  searchTasks,
+  searchFiles,
+  searchNotes,
+  searchMessages,
+  music,
+  openPath,
+  inspectPath,
+}) => {
   /**
    * A binding only ever comes from certainty: the task named *is* a catalogue entry, or
    * the query the model passed has exactly one answer. Anything fuzzier books to the
@@ -304,6 +332,190 @@ export const createTools = ({ actions, getSnapshot, readNotes, readClips, search
         const paths = await searchFiles(words, 10)
         if (paths.length === 0) return `No files match "${words}".`
         return paths.join('\n')
+      },
+    },
+
+    /**
+     * Notes from any day, found by their words — "what did I write about the kickoff",
+     * which names no date and so cannot be answered by read_notes.
+     */
+    search_notes: {
+      schema: schema(
+        'search_notes',
+        'Search all past notes by their words, newest first. Use this when the user asks what they wrote about something and does not say which day.',
+        { query: string('Words the note should contain, e.g. "kickoff schaeffler".') },
+        ['query'],
+      ),
+      read: async ({ query }) => {
+        const words = String(query ?? '').trim()
+        if (!words) return 'No search words were given.'
+        if (!searchNotes) return 'Note search is not available here.'
+
+        const found = await searchNotes(words, 8)
+        if (found.length === 0) return `No note contains "${words}".`
+        return found
+          .map((note) => `${note.date} ${note.time} — ${note.text.replace(/\s+/g, ' ').slice(0, 200)}`)
+          .join('\n')
+      },
+    },
+
+    /**
+     * The Messages history on this Mac, read-only.
+     *
+     * macOS keeps it behind Full Disk Access, so the interesting answer is often the one
+     * about permission rather than about messages — it is handed back whole, because "I
+     * cannot see your messages" without the reason is a dead end.
+     */
+    search_messages: {
+      schema: schema(
+        'search_messages',
+        'Search the Messages (iMessage/SMS) history on this Mac for texts containing some words. Read-only: it can find and quote messages, it cannot send one.',
+        { query: string('Words to look for, e.g. "dinner friday".') },
+        ['query'],
+      ),
+      read: async ({ query }) => {
+        const words = String(query ?? '').trim()
+        if (!words) return 'No search words were given.'
+        if (!searchMessages) return 'Message search is not available here.'
+
+        const outcome = await searchMessages(words, 10)
+        if (outcome.blocked) return outcome.hint
+        if (outcome.failed) return outcome.failed
+        if (outcome.lines.length === 0) return `No message contains "${words}".`
+        return outcome.lines.join('\n')
+      },
+    },
+
+    /**
+     * The transport: play, pause, skip. Undoable because the opposite command is exactly
+     * how a person takes it back, and because nothing of the user's is written either way.
+     */
+    control_music: {
+      schema: schema(
+        'control_music',
+        'Control the music playing on this Mac — play, pause, skip to the next track, or go back to the previous one. Works with whichever of Apple Music or Spotify is already open.',
+        {
+          command: {
+            type: 'string',
+            enum: ['play', 'pause', 'next', 'previous'],
+            description: 'What the player should do.',
+          },
+        },
+        ['command'],
+      ),
+      run: async ({ command }) => {
+        const wanted = String(command ?? '').trim().toLowerCase()
+        if (!music) return { failed: 'Music control is not available here.' }
+        if (!INVERSE_COMMAND[wanted]) {
+          return { failed: `"${command}" is not one of play, pause, next or previous.` }
+        }
+
+        const outcome = await music.command(wanted)
+        if (outcome.failed) return { failed: outcome.failed }
+
+        const playing = describeTrack(outcome.track)
+        return {
+          title: `${TRANSPORT_TITLES[wanted]} · ${outcome.player}`,
+          detail: playing ?? 'nothing playing',
+          told: playing
+            ? `${TRANSPORT_TITLES[wanted]} on ${outcome.player}. Now playing: ${playing}.`
+            : `${TRANSPORT_TITLES[wanted]} on ${outcome.player}. Nothing is playing there now.`,
+          command: wanted,
+        }
+      },
+      undo: async ({ command }) => {
+        const back = INVERSE_COMMAND[command] ?? 'pause'
+        const outcome = await music.command(back)
+        if (outcome.failed) return outcome.failed
+        const playing = describeTrack(outcome.track)
+        return playing ? `${TRANSPORT_TITLES[back]} — now playing ${playing}.` : TRANSPORT_TITLES[back]
+      },
+    },
+
+    /**
+     * Putting something specific on: an album, an artist, a playlist, a song.
+     *
+     * Undo pauses rather than restoring the previous track: a player will say what it is
+     * playing but not how to get back to it, so claiming to have put it back would be a
+     * lie. The card names what was interrupted instead, which is what a person needs to
+     * find it again.
+     */
+    play_music: {
+      schema: schema(
+        'play_music',
+        'Play a named album, artist, playlist or song from the Apple Music library on this Mac. Use this for "put on <something>" and "change to the new album".',
+        {
+          name: string('What to play, e.g. "Hounds of Love".'),
+          kind: {
+            type: 'string',
+            enum: [...PLAY_KINDS],
+            description: 'What the name refers to. Defaults to album.',
+          },
+        },
+        ['name'],
+      ),
+      run: async ({ name, kind }) => {
+        const wanted = String(name ?? '').trim()
+        if (!music) return { failed: 'Music control is not available here.' }
+        if (!wanted) return { failed: 'Nothing was named to play.' }
+
+        const what = PLAY_KINDS.includes(String(kind ?? '')) ? String(kind) : 'album'
+        const before = await music.current().catch(() => null)
+        const outcome = await music.playNamed({ kind: what, name: wanted })
+        if (outcome.failed) return { failed: outcome.failed }
+
+        const playing = describeTrack(outcome.track)
+        return {
+          title: `Playing ${what} · ${wanted}`,
+          detail: playing ?? outcome.player,
+          told: playing
+            ? `Playing ${playing} on ${outcome.player}.`
+            : `Asked ${outcome.player} to play the ${what} “${wanted}”.`,
+          before: describeTrack(before),
+        }
+      },
+      undo: async ({ before }) => {
+        const outcome = await music.command('pause')
+        if (outcome.failed) return outcome.failed
+        return before ? `Paused. Before this, ${before} was playing.` : 'Paused it again.'
+      },
+    },
+
+    /**
+     * Opening what search_files found. Not undoable — an app that has opened a file has
+     * opened it — so it waits for a press, and the press only ever hands a path to macOS
+     * to open the way a double-click would. No arguments, no shell, no command.
+     */
+    open_path: {
+      schema: schema(
+        'open_path',
+        'Open a file, folder or app on this Mac the way a double-click would, or reveal it in Finder. Find the path with search_files first and pass it back whole.',
+        {
+          path: string('The full path, e.g. "/Users/me/Desktop/spec.pdf".'),
+          reveal: {
+            type: 'boolean',
+            description: 'True to show it in Finder instead of opening it.',
+          },
+        },
+        ['path'],
+      ),
+      propose: async ({ path, reveal }) => {
+        const wanted = String(path ?? '').trim()
+        if (!wanted) return { failed: 'No path was given.' }
+        if (!openPath || !inspectPath) return { failed: 'Opening files is not available here.' }
+
+        const found = await inspectPath(wanted)
+        if (!found.exists) return { failed: `Nothing exists at ${wanted}.` }
+
+        return {
+          title: `${reveal ? 'Show in Finder' : 'Open'} · ${found.name}`,
+          detail: found.path,
+        }
+      },
+      run: async ({ path, reveal }) => {
+        const outcome = await openPath(String(path ?? ''), { reveal: Boolean(reveal) })
+        if (outcome.failed) return { told: `That would not open: ${outcome.failed}` }
+        return { told: reveal ? 'Shown it in Finder.' : 'Opened it.' }
       },
     },
 
