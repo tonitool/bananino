@@ -28,7 +28,7 @@ import { createChat } from './chat/session.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { execFile } from 'node:child_process'
-import { stat } from 'node:fs/promises'
+import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
@@ -52,6 +52,7 @@ import { describeMinutes, parseDuration } from './storage/duration.js'
 import { clearUnpinned, removeClip, searchClips, togglePin } from './storage/clips.js'
 import { ensureDir, notesDir } from './storage/paths.js'
 import { searchNotes } from './storage/noteSearch.js'
+import { createFileSearch } from './storage/fileSearch.js'
 import { formatMinutes } from './storage/dates.js'
 import {
   maybeClickSelector,
@@ -200,6 +201,27 @@ export const startApp = () => {
    */
   const musicControl = createMusicControl({ osascript })
 
+  /*
+   * Spotlight, plus a folder listing for "what did I download". `mdfind` is given its
+   * arguments as an array and never a command line, so a query is words to search for and
+   * cannot become a flag or a second command. The well-known folders come from electron
+   * rather than from `~/Downloads` guessed at: a Mac in German has a Downloads folder the
+   * Finder calls Downloads and the shell does not.
+   */
+  const fileSearch = createFileSearch({
+    mdfind: async (args) => {
+      const { stdout } = await execFileAsync('mdfind', args, {
+        timeout: 8_000,
+        maxBuffer: 1024 * 1024,
+      })
+      return stdout.split('\n').filter(Boolean)
+    },
+    statFile: (path) => stat(path),
+    readFolder: (dir) => readdir(dir),
+    home: homedir(),
+    known: (name) => app.getPath(name),
+  })
+
   const music = createNowPlaying({
     isEnabled: () => settings.showNowPlaying,
     onChange: () => void pushSnapshot(),
@@ -263,18 +285,7 @@ export const startApp = () => {
     getEngineMode: () => settings.chatEngine,
     hasCloudKey: async () => (await readKey()) !== null,
     // Spotlight, for the chat's search_files tool: looks, never opens or moves anything.
-    searchFiles: async (query, limit = 10) => {
-      try {
-        const { stdout } = await execFileAsync('mdfind', [query], {
-          timeout: 8_000,
-          maxBuffer: 256 * 1024,
-        })
-        return stdout.split('\n').filter(Boolean).slice(0, limit)
-      } catch (error) {
-        console.error('[app] file search failed:', error.message)
-        return []
-      }
-    },
+    searchFiles: fileSearch,
     // The notes the user already owns, across every day rather than only today's file.
     searchNotes: (query, limit) =>
       searchNotes({ dir: notesDir(settings.dataDir), query, limit }).catch((error) => {

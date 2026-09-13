@@ -215,7 +215,9 @@ it uses a tool, rather than telling you which button to press.
 | "track an hour on BIK, book it to the Creative Engine project" | Timer starts, bound to that MOCO task |
 | "note that the deck is due Friday" | Written into today's notes file |
 | "what did I write about the kickoff?" | Searches every past day's notes |
-| "find the spec sketch on my Mac" | Spotlight, full paths back |
+| "find the spec sketch on my Mac" | Spotlight, full paths and dates, newest first |
+| "what did I download today?" | Lists your Downloads folder, newest first |
+| "the invoice in my Downloads" | Searches that folder only, not the whole Mac |
 | "open it" | Opens the file — after you press the card |
 | "what did Anna text me about dinner?" | Searches the Messages history on this Mac |
 | "what did I copy earlier?" | Searches the clipboard history |
@@ -237,6 +239,9 @@ Settings → Privacy & Security → Full Disk Access**.
 
 A few limits worth knowing rather than discovering:
 
+- File search is Spotlight's index, so it finds what Spotlight finds. A folder can be
+  named — Downloads, Desktop, Documents, or a full path — and anything it cannot place it
+  says so rather than quietly searching everywhere.
 - Playing something *by name* is Apple Music only — Spotify's AppleScript can play a URI
   but cannot search your library. Skip, pause and play work in both.
 - A player that is closed is never spoken to, so nothing launches Music behind your back.

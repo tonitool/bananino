@@ -1,5 +1,6 @@
 import { parseDuration } from '../storage/duration.js'
 import { INVERSE_COMMAND, PLAY_KINDS, describeTrack } from '../music/control.js'
+import { formatFile } from '../storage/fileSearch.js'
 
 /**
  * What the buddy is allowed to do, and the rule that decides how.
@@ -321,17 +322,31 @@ export const createTools = ({
     search_files: {
       schema: schema(
         'search_files',
-        'Search files on this Mac by name or content words (Spotlight). Returns the full paths of the best matches, newest-modified first. Use it when the user asks for a file or a path.',
-        { query: string('File name or content words to look for, e.g. "spec sketch final".') },
-        ['query'],
+        'Search files on this Mac by name or content words (Spotlight), newest-modified first, with the full path and date of each. Pass folder to look in one place — "Downloads", "Desktop" or a full path — and pass folder with no query to list what is in it, which answers "what did I download".',
+        {
+          query: string('File name or content words to look for, e.g. "spec sketch final".'),
+          folder: string('Optional: where to look, e.g. "Downloads" or "/Users/me/Projects".'),
+        },
       ),
-      read: async ({ query }) => {
-        const words = String(query ?? '').trim()
-        if (!words) return 'No search words were given.'
+      read: async ({ query, folder }) => {
         if (!searchFiles) return 'File search is not available here.'
-        const paths = await searchFiles(words, 10)
-        if (paths.length === 0) return `No files match "${words}".`
-        return paths.join('\n')
+
+        const outcome = await searchFiles({
+          query: String(query ?? ''),
+          folder: String(folder ?? '').trim(),
+          limit: 10,
+        })
+        if (outcome.failed) return outcome.failed
+
+        if (outcome.files.length === 0) {
+          const words = String(query ?? '').trim()
+          if (!words) return `${outcome.dir} is empty.`
+          return outcome.dir
+            ? `No file in ${outcome.dir} matches "${words}".`
+            : `No files match "${words}".`
+        }
+
+        return outcome.files.map(formatFile).join('\n')
       },
     },
 

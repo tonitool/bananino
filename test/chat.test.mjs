@@ -415,19 +415,46 @@ test('read_calendar answers from the snapshot the panel is already showing', asy
   assert.match(await unconnected.read_calendar.read({}), /No calendar is connected/)
 })
 
-test('search_files hands paths back whole', async () => {
+test('search_files hands paths back whole, dated, and scoped to the folder asked for', async () => {
+  let asked = null
   const tools = createTools({
     actions: {},
     getSnapshot: () => ({}),
     readNotes: async () => [],
     searchTasks: () => [],
-    searchFiles: async () => ['/Users/me/Desktop/spec sketch final v3.pdf'],
+    searchFiles: async (request) => {
+      asked = request
+      return {
+        dir: '/Users/me/Downloads',
+        files: [
+          {
+            path: '/Users/me/Downloads/spec sketch final v3.pdf',
+            modified: new Date('2026-09-12T14:03:00Z'),
+          },
+        ],
+      }
+    },
   })
 
+  // A path you cannot open is a path not found, so it is never shortened — and the date
+  // is how a person picks between "final" and "final v3".
   assert.equal(
-    await tools.search_files.read({ query: 'spec sketch' }),
-    '/Users/me/Desktop/spec sketch final v3.pdf',
+    await tools.search_files.read({ query: 'spec sketch', folder: 'Downloads' }),
+    '2026-09-12 14:03  /Users/me/Downloads/spec sketch final v3.pdf',
   )
+  assert.deepEqual(asked, { query: 'spec sketch', folder: 'Downloads', limit: 10 })
+})
+
+test('a folder the buddy cannot place is reported in its own words', async () => {
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    searchFiles: async () => ({ failed: 'I do not know where "wherever" is.' }),
+  })
+
+  assert.match(await tools.search_files.read({ query: 'x', folder: 'wherever' }), /do not know where/)
 })
 
 test('every reader app.js hands the chat reaches the tool that needs it', async () => {
