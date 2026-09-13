@@ -185,6 +185,19 @@ export const DEFAULT_SHORTCUTS = Object.freeze({
   rewrite: 'Control+Alt+R',
 })
 
+/**
+ * The shortcuts as the Keys pane lists them: what each one does, in the order they are
+ * worth reading. Every id here is a key of DEFAULT_SHORTCUTS, and a test holds the two
+ * together — a shortcut with no row is a shortcut nobody can rebind.
+ */
+export const SHORTCUT_MENU = Object.freeze([
+  ['panel', 'Open the panel', 'Shows or hides the buddy’s panel, whatever you are in.'],
+  ['note', 'New note', 'Opens the panel on an empty note, ready to type.'],
+  ['timer', 'Start or stop the timer', 'Toggles the timer on your most recent task.'],
+  ['clips', 'Clipboard history', 'Opens the panel on the list of things you have copied.'],
+  ['rewrite', 'Rewrite the selection', 'Rewrites the text selected in whatever app you are writing in.'],
+])
+
 export const IPC = Object.freeze({
   micChunk: 'meeting:mic-chunk',
   micState: 'meeting:mic-state',
@@ -257,6 +270,8 @@ export const IPC = Object.freeze({
   settingsSetClipboard: 'settings:set-capture-clips',
   settingsSetNowPlaying: 'settings:set-now-playing',
   settingsChooseFolder: 'settings:choose-folder',
+  settingsSetShortcut: 'settings:set-shortcut',
+  settingsRecording: 'settings:recording',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
 

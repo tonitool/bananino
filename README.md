@@ -167,7 +167,7 @@ would rather it just stayed out.
 
 ## Shortcuts
 
-| Shortcut | Action |
+| Shortcut (default) | Action |
 | --- | --- |
 | `⌃⌥Space` | Open / close the panel |
 | `⌃⌥N` | Open the panel on a fresh note |
@@ -175,8 +175,17 @@ would rather it just stayed out.
 | `⌃⌥V` | Open clipboard history |
 | `⌃⌥R` | Rewrite the text selected in any app |
 
-If another app already owns one of these, it is skipped and a line is logged — nothing
-breaks. They are listed in the menu bar icon's menu too.
+Every one of them can be changed: **Settings → Keys**, click the chord, press the new one.
+`⌫` while recording switches a shortcut off; `esc` leaves it alone. The app's own shortcuts
+stand down while you are recording, so you can rebind a chord onto keys Bananino currently
+holds.
+
+Two things a global shortcut does badly are called out in the pane rather than left to be
+discovered: a chord another app already owns (it will not register, and the row says so)
+and the same chord given to two of these (only one can fire). A chord has to include ⌘, ⌃
+or ⌥ — without one it would swallow that key in every app on this Mac.
+
+The menus print whatever you have bound, so they never advertise a key that has moved.
 
 ## Rewriting what you are writing
 
@@ -212,8 +221,8 @@ One view at a time — **Chat · Time · Note · Clips · Meet · Cal** — beca
 all of them left every part too small, and overlapping whenever one grew. A running timer is
 the one thing shown on every view, as a slim strip you can click to jump back to Time.
 **Settings** is not a view at all but its own window — right-click the character →
-**Settings…** (or `⌘,`), like every Mac app — with Buddy, Wardrobe, Behaviour, Files and
-About in the sidebar.
+**Settings…** (or `⌘,`), like every Mac app — with Buddy, Wardrobe, AI, Keys, Behaviour,
+Files and About in the sidebar.
 
 **Time** is the timer and its MOCO status. Recent tasks are one-tap chips; typing at least
 two letters searches your MOCO projects. While a timer runs there is a **description**

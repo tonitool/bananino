@@ -18,7 +18,7 @@ const toClipPreview = (clip) => ({
  * One object describing everything the panel renders. Pushing a whole snapshot on every
  * change keeps the renderer free of its own copy of the truth.
  */
-export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar, version, ai }) => {
+export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting, calendar, version, ai, shortcuts }) => {
   const { dataDir } = settings
 
   const [today, notesToday, recentNotes] = await Promise.all([
@@ -49,6 +49,11 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
     nowPlaying: nowPlaying ?? null,
     meeting: meeting ?? null,
     calendar: calendar ?? null,
+    /*
+     * The chords as they are now, and the ones another app already owns. Both, because a
+     * pane that shows only the first cannot explain a key that does nothing.
+     */
+    shortcuts: shortcuts ?? { values: settings.shortcuts ?? {}, failed: [] },
     settings: {
       corner: settings.corner,
       sizeKey: settings.sizeKey,

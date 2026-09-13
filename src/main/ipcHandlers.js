@@ -60,6 +60,13 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
      * it is an index into versions the main process itself produced — never text from the
      * page, which could not then be trusted to be what the user read and pressed.
      */
+    [IPC.settingsRecording]: (_e, on) => actions.setRecordingShortcut(Boolean(on)),
+    [IPC.settingsSetShortcut]: (_e, payload) =>
+      actions.setShortcut({
+        id: asString(payload?.id),
+        accelerator: asString(payload?.accelerator),
+      }),
+
     [IPC.rewriteOpened]: () => actions.rewriteOpened(),
     [IPC.rewriteAsk]: (_e, instruction) => actions.rewriteAsk(asString(instruction)),
     [IPC.rewriteUse]: (_e, index) => actions.rewriteUse(Number(index)),

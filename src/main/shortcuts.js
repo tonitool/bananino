@@ -2,27 +2,35 @@ import { globalShortcut } from 'electron'
 import { DEFAULT_SHORTCUTS } from './constants.js'
 
 /**
- * Global shortcuts are best-effort: another app may already own an accelerator, and
- * failing to register one must never stop the app from starting.
+ * The global shortcuts, as the user has them.
+ *
+ * Best-effort by design: another app may already own a chord, and failing to register one
+ * must never stop this app from starting. What is new since that was the whole story is
+ * that the failures are *returned* rather than only logged — Settings → Keys shows which
+ * chord did not take, which is the difference between "this app is broken" and "Raycast
+ * has that one".
+ *
+ * An empty accelerator is not a failure: it is a shortcut the user switched off.
  */
-export const registerShortcuts = (handlers) => {
+export const registerShortcuts = (handlers, accelerators = DEFAULT_SHORTCUTS) => {
   const failed = []
 
-  for (const [name, accelerator] of Object.entries(DEFAULT_SHORTCUTS)) {
-    const handler = handlers[name]
-    if (!handler) continue
+  for (const [name, handler] of Object.entries(handlers)) {
+    const accelerator = accelerators?.[name]
+    if (!handler || !accelerator) continue
 
     try {
-      if (!globalShortcut.register(accelerator, handler)) failed.push(accelerator)
+      if (!globalShortcut.register(accelerator, handler)) failed.push(name)
     } catch (error) {
       console.warn(`[shortcuts] ${accelerator} could not be registered:`, error.message)
-      failed.push(accelerator)
+      failed.push(name)
     }
   }
 
   if (failed.length > 0) {
-    console.warn(`[shortcuts] already taken by another app: ${failed.join(', ')}`)
+    const taken = failed.map((name) => `${name} (${accelerators[name]})`).join(', ')
+    console.warn(`[shortcuts] already taken by another app: ${taken}`)
   }
 
-  return () => globalShortcut.unregisterAll()
+  return { failed, dispose: () => globalShortcut.unregisterAll() }
 }

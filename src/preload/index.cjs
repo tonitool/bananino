@@ -69,6 +69,8 @@ const IPC = {
   settingsSetClipboard: 'settings:set-capture-clips',
   settingsSetNowPlaying: 'settings:set-now-playing',
   settingsChooseFolder: 'settings:choose-folder',
+  settingsSetShortcut: 'settings:set-shortcut',
+  settingsRecording: 'settings:recording',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
 
@@ -161,6 +163,10 @@ contextBridge.exposeInMainWorld('pet', {
   setCaptureClipboard: (value) => ipcRenderer.send(IPC.settingsSetClipboard, Boolean(value)),
   setShowNowPlaying: (value) => ipcRenderer.send(IPC.settingsSetNowPlaying, Boolean(value)),
   chooseDataFolder: () => ipcRenderer.send(IPC.settingsChooseFolder),
+  /* `{ id, accelerator }` — an empty accelerator switches that shortcut off. */
+  setShortcut: (payload) => ipcRenderer.send(IPC.settingsSetShortcut, payload),
+  /* Global shortcuts stand down while a chord is being recorded — see src/main/app.js. */
+  setRecordingShortcut: (on) => ipcRenderer.send(IPC.settingsRecording, Boolean(on)),
   setDance: (name) => ipcRenderer.send(IPC.setDance, name ?? null),
   openReleases: () => ipcRenderer.send(IPC.openReleases),
 

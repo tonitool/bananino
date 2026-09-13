@@ -21,6 +21,7 @@ import { createTray } from './tray.js'
 import { popupMenu } from './menu.js'
 import { registerIpcHandlers } from './ipcHandlers.js'
 import { registerShortcuts } from './shortcuts.js'
+import { normaliseAccelerator } from './accelerators.js'
 import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
 import { createCalendarSync } from './calendar/sync.js'
@@ -85,6 +86,9 @@ const expandHome = (value) => {
   return path === '~' || path.startsWith('~/') ? join(homedir(), path.slice(1)) : path
 }
 
+/** Longest a recording may hold the global shortcuts down before they come back by force. */
+const RECORDING_GRACE_MS = 20_000
+
 /** Dates arrive from the panel as YYYY-MM-DD; midday avoids every timezone edge. */
 const parseIsoDate = (value) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
@@ -107,7 +111,8 @@ export const startApp = () => {
   const saveSettings = (patch) => (settings = writeSettings(patch))
 
   const win = createPetWindow({ character: settings.character })
-  const settingsWindow = createSettingsWindow()
+  // Rebinding on close covers the window being shut mid-recording, before its own stop.
+  const settingsWindow = createSettingsWindow({ onClosed: () => bindShortcuts() })
   // --pin-panel keeps the panel up while a screenshot is taken.
   const isPinned = () => process.argv.includes('--pin-panel')
   const interaction = createInteraction({
@@ -161,6 +166,7 @@ export const startApp = () => {
         nowPlaying: music.current(),
         meeting: meeting.status(),
         calendar: calendar.status(),
+        shortcuts: { values: settings.shortcuts, failed: shortcuts.failed },
         version: app.getVersion(),
       })
       send(IPC.snapshot, lastSnapshot)
@@ -436,6 +442,50 @@ export const startApp = () => {
       refresh()
     },
   })
+
+  /**
+   * The global shortcuts, and the ability to change one without restarting.
+   *
+   * Registration is all-or-nothing per chord and there is no way to move one: unregister
+   * everything and claim it again, which is cheap and keeps one code path instead of two.
+   * `failed` travels into the snapshot so the Keys pane can say *which* chord another app
+   * already owns, rather than leaving a key that silently does nothing.
+   */
+  const SHORTCUT_HANDLERS = {
+    panel: () => actions.togglePanel(),
+    note: () => actions.openPanel('note'),
+    clips: () => actions.openPanel('clips'),
+    timer: () => actions.toggleTimer(),
+    rewrite: () => actions.rewrite(),
+  }
+
+  let shortcuts = { failed: [], dispose: () => {} }
+  let recordingTimeout = null
+
+  const bindShortcuts = () => {
+    clearTimeout(recordingTimeout)
+    recordingTimeout = null
+    shortcuts.dispose()
+    shortcuts = registerShortcuts(SHORTCUT_HANDLERS, settings.shortcuts)
+    return shortcuts
+  }
+
+  /**
+   * Every global shortcut stands down while the Keys pane is listening.
+   *
+   * Without this you cannot rebind the five chords that matter most: a registered global
+   * shortcut is swallowed before any window sees it, so pressing ⌃⌥Space to record it
+   * would open the panel instead. The timeout is the safety net — a settings window that
+   * disappears mid-recording must not leave the keys switched off.
+   */
+  const standDownShortcuts = (recording) => {
+    clearTimeout(recordingTimeout)
+    if (!recording) return void bindShortcuts()
+
+    shortcuts.dispose()
+    shortcuts = { failed: [], dispose: () => {} }
+    recordingTimeout = setTimeout(() => bindShortcuts(), RECORDING_GRACE_MS)
+  }
 
   const actions = {
     /**
@@ -830,6 +880,26 @@ export const startApp = () => {
     rewriteClose: () => rewrite.close(),
     rewriteHeight: (height) => rewriteWindow.setHeight(height),
 
+    /**
+     * Rebinding a shortcut, from Settings → Keys.
+     *
+     * Saved first and registered second, so a chord another app owns is still the one the
+     * pane shows: the user picked it, it is theirs, and the snapshot's `failed` list says
+     * it did not take. Quietly reverting to the old chord would be the worse lie.
+     */
+    setRecordingShortcut: (recording) => standDownShortcuts(recording),
+
+    setShortcut: ({ id, accelerator }) => {
+      if (!Object.hasOwn(SHORTCUT_HANDLERS, id)) return
+      const wanted = accelerator === '' ? '' : normaliseAccelerator(accelerator)
+      if (wanted === null) return
+
+      saveSettings({ shortcuts: { ...settings.shortcuts, [id]: wanted } })
+      bindShortcuts()
+      // The menus print the live chord beside each item, so they are stale until rebuilt.
+      refresh()
+    },
+
     copyClip: async (id) => {
       const clip = clipboard.all().find((entry) => entry.id === id)
       if (!clip) return
@@ -1009,13 +1079,7 @@ export const startApp = () => {
   })
 
   const unregisterIpc = registerIpcHandlers({ interaction, perch, actions, mic })
-  const unregisterShortcuts = registerShortcuts({
-    panel: actions.togglePanel,
-    note: () => actions.openPanel('note'),
-    clips: () => actions.openPanel('clips'),
-    timer: actions.toggleTimer,
-    rewrite: actions.rewrite,
-  })
+  bindShortcuts()
 
   win.webContents.once('did-finish-load', () => {
     void clipboard.start()
@@ -1054,7 +1118,7 @@ export const startApp = () => {
     music.stop()
     updates.stop?.()
     unregisterIpc()
-    unregisterShortcuts()
+    shortcuts.dispose()
     clipboard.stop()
     tray.dispose()
     interaction.stopDrag()

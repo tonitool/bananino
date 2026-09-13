@@ -1,4 +1,5 @@
 import { el } from '../ui/dom.js'
+import { fromKeyboardEvent } from '../../main/accelerators.js'
 
 /*
  * The Mac-settings vocabulary: inset-grouped cards, rows with the label on the left and
@@ -84,3 +85,86 @@ export const button = ({ text, onclick, primary = false }) =>
     text,
     onclick,
   })
+
+/**
+ * A shortcut recorder: shows the chord, and on click listens for the next one.
+ *
+ * Keys are read while it is listening and *only* then, on the capture phase with the event
+ * swallowed — otherwise recording ⌘W would close this window instead of being recorded,
+ * which is a memorable way to lose a settings pane.
+ *
+ * `esc` leaves it alone, `delete` switches the shortcut off. Both are printed in the
+ * placeholder, because a control that only works if you already know how is not a control.
+ */
+export const recorder = ({ onChange, describe, onRecording = () => {} }) => {
+  let listening = false
+  let current = ''
+
+  const label = el('span', { class: 'rec-keys' })
+  const root = el('button', {
+    class: 'rec',
+    type: 'button',
+    'aria-label': 'Change this shortcut',
+    onclick: () => (listening ? stop() : start()),
+  }, [label])
+
+  const paint = () => {
+    root.dataset.listening = String(listening)
+    root.dataset.off = String(!listening && !current)
+    label.textContent = listening ? 'Press keys · esc, ⌫ off' : describe(current) || 'Off'
+  }
+
+  const onKeyDown = (event) => {
+    if (!listening) return
+    // Nothing typed while recording belongs to anything else on the page.
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (event.key === 'Escape') return stop()
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      current = ''
+      onChange('')
+      return stop()
+    }
+
+    const accelerator = fromKeyboardEvent(event)
+    // A modifier on its own is a chord still being pressed, not an answer.
+    if (!accelerator) return
+
+    current = accelerator
+    onChange(accelerator)
+    stop()
+  }
+
+  const start = () => {
+    listening = true
+    /*
+     * The app's own global shortcuts are swallowed before any window sees them, so they
+     * stand down while this listens — otherwise the five chords most worth rebinding are
+     * the five you cannot press here.
+     */
+    onRecording(true)
+    window.addEventListener('keydown', onKeyDown, true)
+    paint()
+  }
+
+  const stop = () => {
+    listening = false
+    window.removeEventListener('keydown', onKeyDown, true)
+    onRecording(false)
+    paint()
+  }
+
+  // Clicking elsewhere abandons a recording rather than leaving the window swallowing keys.
+  root.addEventListener('blur', () => listening && stop())
+
+  paint()
+  return {
+    root,
+    set: (value) => {
+      if (listening) return
+      current = value ?? ''
+      paint()
+    },
+  }
+}

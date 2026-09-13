@@ -16,6 +16,7 @@ import {
   WINDOW_SIZES,
 } from './constants.js'
 import { defaultDataDir } from './storage/paths.js'
+import { sanitiseShortcuts } from './accelerators.js'
 
 const FILE_NAME = 'pet-state.json'
 
@@ -58,6 +59,13 @@ const sanitize = (raw) => ({  sizeKey: Object.hasOwn(WINDOW_SIZES, raw?.sizeKey)
   character: CHARACTER_MENU.some(([id]) => id === raw?.character) ? raw.character : DEFAULT_CHARACTER,
   shirt: SHIRT_MENU.some(([id]) => id === raw?.shirt) ? raw.shirt : 'none',
   look: LOOK_MENU.some(([id]) => id === raw?.look) ? raw.look : DEFAULT_LOOK,
+  /*
+   * Global shortcuts, rebindable in Settings → Keys. A chord this app will not register —
+   * hand-edited, or from a build that knew a key this one does not — falls back to the
+   * default rather than leaving the action unreachable; an empty string is kept, because
+   * it means the user switched that one off.
+   */
+  shortcuts: sanitiseShortcuts(raw?.shortcuts),
   mocoSubdomain: typeof raw?.mocoSubdomain === 'string' ? raw.mocoSubdomain : '',
   // Marker only — the feed URL itself is a bearer secret and lives in safeStorage.
   calendarFeed: raw?.calendarFeed === true,

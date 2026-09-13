@@ -23,6 +23,7 @@
   --tint-lilac: oklch(80% 0.06 300);
   --tint-sage: oklch(82% 0.07 155);
   --tint-coral: oklch(76% 0.13 52);
+  --tint-mint: oklch(84% 0.09 175);
 
   --radius-card: 14px;
   --radius-group: 12px;
@@ -734,4 +735,62 @@ body {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+
+/*
+ * The Keys pane: a recorder per shortcut.
+ *
+ * Sized to the widest chord it can show rather than to its content, so a pane full of
+ * them does not jitter its column every time one is rebound.
+ */
+.rec-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.rec {
+  min-width: 96px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--cocoa);
+  padding: 5px 12px;
+  background: var(--cream);
+  border: 1px solid var(--cream-line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.rec:hover {
+  border-color: var(--butter-deep);
+}
+
+.rec[data-listening='true'] {
+  color: var(--cocoa-soft);
+  background: var(--cream-sunk);
+  border-color: var(--butter-deep);
+  border-style: dashed;
+}
+
+/* A shortcut switched off reads as off, rather than as an empty box that failed to load. */
+.rec[data-off='true'] .rec-keys {
+  color: var(--cocoa-soft);
+}
+
+.rec-keys {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.row-warn {
+  max-width: 230px;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  text-align: right;
+  color: oklch(58% 0.15 30);
 }

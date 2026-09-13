@@ -18,7 +18,7 @@ const WINDOW_BACKGROUND = '#fbf7ec'
  * One window, opened on demand and destroyed on close rather than hidden: it is used
  * once in a blue moon, and keeping it alive would keep its renderer resident for nothing.
  */
-export const createSettingsWindow = () => {
+export const createSettingsWindow = ({ onClosed } = {}) => {
   let win = null
 
   const open = () => {
@@ -51,7 +51,10 @@ export const createSettingsWindow = () => {
       },
     })
 
-    win.on('closed', () => (win = null))
+    win.on('closed', () => {
+      win = null
+      onClosed?.()
+    })
     win.once('ready-to-show', () => {
       win.show()
       // An accessory app shows no Dock icon; without this the window can open behind

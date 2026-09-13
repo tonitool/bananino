@@ -5,6 +5,7 @@ import { createAiPane } from './panes/ai.js'
 import { createBuddyPane } from './panes/buddy.js'
 import { createWardrobePane } from './panes/wardrobe.js'
 import { createBehaviourPane } from './panes/behaviour.js'
+import { createKeysPane } from './panes/keys.js'
 import { createFilesPane } from './panes/files.js'
 import { createAboutPane } from './panes/about.js'
 
@@ -39,6 +40,10 @@ function boot(bridge) {
     setCaptureClipboard: (on) => bridge.setCaptureClipboard(on),
     setShowNowPlaying: (on) => bridge.setShowNowPlaying(on),
   })
+  const keys = createKeysPane({
+    setShortcut: (payload) => bridge.setShortcut(payload),
+    setRecording: (on) => bridge.setRecordingShortcut(on),
+  })
   const files = createFilesPane({
     revealData: () => bridge.revealData(),
     chooseDataFolder: () => bridge.chooseDataFolder(),
@@ -71,6 +76,13 @@ function boot(bridge) {
       blurb: 'Where the chat’s words go, and whose key pays for the cloud.',
       tint: 'var(--tint-coral)',
       view: ai,
+    },
+    {
+      id: 'keys',
+      label: 'Keys',
+      blurb: 'The shortcuts that reach the buddy from anywhere on this Mac.',
+      tint: 'var(--tint-mint)',
+      view: keys,
     },
     {
       id: 'behaviour',

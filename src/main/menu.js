@@ -19,26 +19,36 @@ const CORNER_LABELS = Object.freeze({
   'top-left': 'Top left',
 })
 
+/**
+ * The chord printed beside a menu item — whatever the user has bound, not what shipped.
+ *
+ * A menu that still advertises ⌃⌥N after someone rebound it is worse than one printing no
+ * shortcut at all, so a shortcut switched off contributes no key here — and as *nothing*
+ * rather than an empty string, which Electron refuses as an invalid accelerator.
+ *
+ * registerAccelerator: false throughout: these are already live as global shortcuts, and
+ * claiming them again from a menu would be the same key registered twice.
+ */
+const chord = (settings, id) => {
+  const accelerator = settings.shortcuts?.[id] ?? DEFAULT_SHORTCUTS[id] ?? ''
+  return accelerator ? { accelerator, registerAccelerator: false } : {}
+}
+
 /** One template, shared by the menu bar icon and the right-click menu on the character. */
 export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, update }) => [
-  // registerAccelerator: false shows the key combination without claiming it twice —
-  // these are already live as global shortcuts.
   {
     label: isPanelOpen ? 'Close panel' : 'Open panel',
-    accelerator: DEFAULT_SHORTCUTS.panel,
-    registerAccelerator: false,
+    ...chord(settings, 'panel'),
     click: actions.togglePanel,
   },
   {
     label: 'New note',
-    accelerator: DEFAULT_SHORTCUTS.note,
-    registerAccelerator: false,
+    ...chord(settings, 'note'),
     click: () => actions.openPanel('note'),
   },
   {
     label: settings.activeTimer ? `Stop “${settings.activeTimer.task}”` : 'Start last timer',
-    accelerator: DEFAULT_SHORTCUTS.timer,
-    registerAccelerator: false,
+    ...chord(settings, 'timer'),
     enabled: Boolean(settings.activeTimer) || settings.recentTasks.length > 0,
     click: actions.toggleTimer,
   },
@@ -46,9 +56,13 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
   // mid-sentence in another app. Asking a question is not one of those.
   { label: 'Ask Bananino…', click: () => actions.openPanel('chat') },
   {
+    label: 'Rewrite selection…',
+    ...chord(settings, 'rewrite'),
+    click: () => actions.rewrite(),
+  },
+  {
     label: 'Clipboard history',
-    accelerator: DEFAULT_SHORTCUTS.clips,
-    registerAccelerator: false,
+    ...chord(settings, 'clips'),
     click: () => actions.openPanel('clips'),
   },
   { type: 'separator' },
