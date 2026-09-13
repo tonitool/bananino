@@ -3,8 +3,8 @@
 A 3D banana buddy that lives in the corner of your Mac. Brush the corner with your cursor
 and it slides in; click it and it hands you a panel for **notes**, **fast time tracking**,
 and **clipboard history** — and a **chat that does things on your Mac**: finds a file or an
-old note, searches your messages, changes the song. Everything is stored as plain files on
-your own disk.
+old note, searches your messages, changes the song. Select text in any app and `⌃⌥R`
+rewrites it in place. Everything is stored as plain files on your own disk.
 
 ![the character](resources/icon.png)
 
@@ -173,9 +173,38 @@ would rather it just stayed out.
 | `⌃⌥N` | Open the panel on a fresh note |
 | `⌃⌥T` | Start or stop the timer on your last task |
 | `⌃⌥V` | Open clipboard history |
+| `⌃⌥R` | Rewrite the text selected in any app |
 
 If another app already owns one of these, it is skipped and a line is logged — nothing
 breaks. They are listed in the menu bar icon's menu too.
+
+## Rewriting what you are writing
+
+Select a sentence anywhere — Mail, Slack, a browser, Pages — and press `⌃⌥R`. A small
+panel opens by your cursor with the text you selected, a row of presets (**Shorter**,
+**Clearer**, **Friendlier**, **More formal**, **Fix grammar**, **To English**, **To
+German**) and a box for anything else you want to ask for. Pick one, and you get up to
+three versions. Click the one you like and it replaces your selection in place. `1`–`3`
+pick a version from the keyboard, `esc` closes.
+
+**Nothing changes until you click a version.** Reading the selection and asking for
+rewrites are free — close the popup and your document is exactly as you left it. The click
+is the commit, and the popup then offers **Put it back** for as long as it stays open.
+
+How it works, because it is worth knowing what it touches: macOS does not let one app read
+another's selection, so Bananino does what you would do — presses ⌘C, looks at the
+clipboard, and later presses ⌘V into the app you came from. That needs **Accessibility**
+permission (System Settings → Privacy & Security → Accessibility); macOS asks the first
+time you press the shortcut. Your clipboard is borrowed and put back, and none of the
+traffic lands in your clips history.
+
+It also knows when you have nothing selected, rather than quietly rewriting whatever you
+copied an hour ago — a sentinel goes on the clipboard first, and if ⌘C does not replace it,
+the popup says so.
+
+> **Not a right-click item, and that is a macOS limit rather than a choice.** Putting an
+> entry in another app's context menu means shipping a macOS *Service*, which an Electron
+> app cannot register from JavaScript. The shortcut does the same job from the keyboard.
 
 ## The panel
 

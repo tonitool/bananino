@@ -181,6 +181,8 @@ export const DEFAULT_SHORTCUTS = Object.freeze({
   note: 'Control+Alt+N',
   timer: 'Control+Alt+T',
   clips: 'Control+Alt+V',
+  /* Rewrite whatever is selected, in whatever app — see src/main/rewrite. */
+  rewrite: 'Control+Alt+R',
 })
 
 export const IPC = Object.freeze({
@@ -257,6 +259,18 @@ export const IPC = Object.freeze({
   settingsChooseFolder: 'settings:choose-folder',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
+
+  /*
+   * The rewrite popup: its own window, over whatever app you were writing in. State goes
+   * out, an instruction and a chosen version come back — see src/main/rewrite.
+   */
+  rewriteState: 'rewrite:state',
+  rewriteOpened: 'rewrite:opened',
+  rewriteAsk: 'rewrite:ask',
+  rewriteUse: 'rewrite:use',
+  rewriteUndo: 'rewrite:undo',
+  rewriteClose: 'rewrite:close',
+  rewriteHeight: 'rewrite:height',
 
   /* The AI engine: where the chat's words may go, and the cloud key behind it. */
   aiSetEngine: 'ai:set-engine',

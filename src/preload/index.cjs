@@ -75,6 +75,14 @@ const IPC = {
   aiSetEngine: 'ai:set-engine',
   aiSaveKey: 'ai:save-key',
   aiForgetKey: 'ai:forget-key',
+
+  rewriteState: 'rewrite:state',
+  rewriteOpened: 'rewrite:opened',
+  rewriteAsk: 'rewrite:ask',
+  rewriteUse: 'rewrite:use',
+  rewriteUndo: 'rewrite:undo',
+  rewriteClose: 'rewrite:close',
+  rewriteHeight: 'rewrite:height',
 }
 
 /** Subscribes and hands back an unsubscribe function so callers cannot leak listeners. */
@@ -160,6 +168,15 @@ contextBridge.exposeInMainWorld('pet', {
   setAiEngine: (mode) => ipcRenderer.send(IPC.aiSetEngine, mode),
   saveAiKey: (key) => ipcRenderer.send(IPC.aiSaveKey, key),
   forgetAiKey: () => ipcRenderer.send(IPC.aiForgetKey),
+
+  /* The rewrite popup — its own window, same bridge. */
+  rewriteOpened: () => ipcRenderer.send(IPC.rewriteOpened),
+  rewriteAsk: send(IPC.rewriteAsk),
+  rewriteUse: send(IPC.rewriteUse),
+  rewriteUndo: () => ipcRenderer.send(IPC.rewriteUndo),
+  rewriteClose: () => ipcRenderer.send(IPC.rewriteClose),
+  rewriteHeight: send(IPC.rewriteHeight),
+  onRewriteState: (handler) => subscribe(IPC.rewriteState, handler),
 
   onCursorMoved: (handler) => subscribe(IPC.cursorMoved, handler),
   onCommand: (handler) => subscribe(IPC.command, handler),

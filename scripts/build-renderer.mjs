@@ -22,6 +22,8 @@ const STATIC_FILES = [
   [join(ROOT, 'src', 'renderer', 'index.html'), join(OUT_DIR, 'index.html')],
   /* The settings window is its own page — see src/main/settingsWindow.js. */
   [join(ROOT, 'src', 'renderer', 'settings.html'), join(OUT_DIR, 'settings.html')],
+  /* So is the rewrite popup — see src/main/rewriteWindow.js. */
+  [join(ROOT, 'src', 'renderer', 'rewrite.html'), join(OUT_DIR, 'rewrite.html')],
   /* The About pane and the sidebar brand show the app icon. */
   [join(ROOT, 'resources', 'icon.png'), join(OUT_DIR, 'icon.png')],
   /* One optimised model per character, loaded by id at runtime — see characters.js. */
@@ -81,6 +83,7 @@ const options = {
   entryPoints: {
     renderer: join(ROOT, 'src', 'renderer', 'main.js'),
     settings: join(ROOT, 'src', 'renderer', 'settings', 'index.js'),
+    rewrite: join(ROOT, 'src', 'renderer', 'rewrite', 'index.js'),
   },
   outdir: OUT_DIR,
   bundle: true,

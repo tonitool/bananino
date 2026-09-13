@@ -1,4 +1,4 @@
-import { Menu, app, dialog, session, shell } from 'electron'
+import { Menu, app, clipboard as systemClipboard, dialog, session, shell, systemPreferences } from 'electron'
 import {
   APP_NAME,
   CALENDAR,
@@ -25,6 +25,11 @@ import { createMeetingController } from './meeting/controller.js'
 import { createMicBridge } from './meeting/micBridge.js'
 import { createCalendarSync } from './calendar/sync.js'
 import { createChat } from './chat/session.js'
+import { createRewrite } from './rewrite/controller.js'
+import { SYSTEM as REWRITE_SYSTEM } from './rewrite/prompt.js'
+import { createSelection } from './rewrite/selection.js'
+import { createRewriteWindow } from './rewriteWindow.js'
+import { chooseEngine } from './chat/engine.js'
 import * as calendarKeys from './calendar/credentials.js'
 import { buildSnapshot } from './snapshot.js'
 import { execFile } from 'node:child_process'
@@ -32,7 +37,8 @@ import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
-import { forgetKey, readKey, saveKey } from './meeting/openrouter.js'
+import { ask as askCloud, forgetKey, readKey, saveKey } from './meeting/openrouter.js'
+import { LlmUnavailable, ask as askLocal, checkOllama } from './meeting/llm.js'
 import { createMocoSync } from './moco/sync.js'
 import { startAutoUpdater } from './update/updater.js'
 import { createNowPlaying } from './music/nowPlaying.js'
@@ -328,6 +334,67 @@ export const startApp = () => {
         directory: Boolean(found?.isDirectory()),
       }
     },
+  })
+
+  /*
+   * The rewrite popup: ⌃⌥R over a selection in any app.
+   *
+   * Three pieces, deliberately apart — selection.js borrows the clipboard and presses the
+   * keys, controller.js holds the flow and the rule that nothing is replaced without a
+   * click, and the window is just a window. The engine choice is made here, the same way
+   * the chat makes it, so "This Mac only" means the same thing in both places.
+   */
+  const selection = createSelection({
+    osascript,
+    clipboard: {
+      readText: async () => (await systemClipboard.readText()) ?? '',
+      writeText: (text) => systemClipboard.writeText(text),
+    },
+    // Counted pause: a rewrite's clipboard traffic is not something the user copied.
+    pauseClips: () => clipboard.pause(),
+  })
+
+  /**
+   * Where a rewrite's words go: the chat's engine rule, applied to a one-shot ask.
+   *
+   * Local unless the user has chosen the cloud and saved a key — and refused outright when
+   * cloud is chosen with no key, rather than quietly falling back to a local model and
+   * rewriting in a different voice than the one they picked.
+   */
+  const askRewriteModel = async ({ prompt, signal }) => {
+    const chosen = chooseEngine({
+      mode: settings.chatEngine,
+      hasCloudKey: (await readKey()) !== null,
+    })
+
+    if (chosen === 'needs-key') {
+      throw new LlmUnavailable('Cloud is chosen in Settings → AI, but no OpenRouter key is saved.')
+    }
+    if (chosen === 'cloud') return askCloud({ system: REWRITE_SYSTEM, prompt, signal })
+
+    const engine = await checkOllama({
+      prefer: settings.chatModel,
+      allowCloud: Boolean(settings.chatModel),
+    })
+    if (!engine.ok) throw new LlmUnavailable(engine.reason ?? 'No local model is available.')
+
+    return askLocal({ model: engine.model, system: REWRITE_SYSTEM, prompt, signal })
+  }
+
+  const rewriteWindow = createRewriteWindow({ onClosed: () => rewrite.close() })
+
+  const rewrite = createRewrite({
+    selection,
+    askModel: askRewriteModel,
+    onState: (state) => rewriteWindow.send(IPC.rewriteState, state),
+    openWindow: () => rewriteWindow.open(),
+    closeWindow: () => rewriteWindow.close(),
+    holdWindow: () => rewriteWindow.holdOpen(),
+    /*
+     * Passing true lets macOS put up its own dialog the first time. An app explaining a
+     * permission is a worse experience than the system asking for it.
+     */
+    isAccessibilityTrusted: (prompt) => systemPreferences.isTrustedAccessibilityClient(prompt),
   })
 
   const timer = createTimer({
@@ -750,6 +817,19 @@ export const startApp = () => {
     },
     toggleTimer: () => timer.toggle().catch(reportOnly('toggle the timer')),
 
+    /*
+     * The rewrite popup. `rewriteUse` takes an index rather than text: the versions the
+     * user read were produced here, and accepting a string back from the page would mean
+     * pasting something nobody in this process had ever seen.
+     */
+    rewrite: () => void rewrite.start(),
+    rewriteOpened: () => rewriteWindow.send(IPC.rewriteState, rewrite.state()),
+    rewriteAsk: (instruction) => void rewrite.ask(instruction),
+    rewriteUse: (index) => void rewrite.use(index),
+    rewriteUndo: () => void rewrite.undo(),
+    rewriteClose: () => rewrite.close(),
+    rewriteHeight: (height) => rewriteWindow.setHeight(height),
+
     copyClip: async (id) => {
       const clip = clipboard.all().find((entry) => entry.id === id)
       if (!clip) return
@@ -934,6 +1014,7 @@ export const startApp = () => {
     note: () => actions.openPanel('note'),
     clips: () => actions.openPanel('clips'),
     timer: actions.toggleTimer,
+    rewrite: actions.rewrite,
   })
 
   win.webContents.once('did-finish-load', () => {

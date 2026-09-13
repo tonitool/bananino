@@ -55,6 +55,18 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
             : null,
       }),
 
+    /*
+     * The rewrite popup. `use` is the only one that changes anything outside this app, and
+     * it is an index into versions the main process itself produced — never text from the
+     * page, which could not then be trusted to be what the user read and pressed.
+     */
+    [IPC.rewriteOpened]: () => actions.rewriteOpened(),
+    [IPC.rewriteAsk]: (_e, instruction) => actions.rewriteAsk(asString(instruction)),
+    [IPC.rewriteUse]: (_e, index) => actions.rewriteUse(Number(index)),
+    [IPC.rewriteUndo]: () => actions.rewriteUndo(),
+    [IPC.rewriteClose]: () => actions.rewriteClose(),
+    [IPC.rewriteHeight]: (_e, height) => actions.rewriteHeight(Number(height)),
+
     [IPC.micChunk]: (_e, samples) => {
       if (samples instanceof Float32Array) mic.handleChunk(samples)
     },

@@ -50,6 +50,19 @@ Two of them are gated by macOS itself rather than by this app:
 What the chat *cannot* do: run a shell command, delete or move a file, or send a message.
 Opening a file is the furthest it reaches out, and only after you press the card.
 
+## Rewriting a selection
+
+`⌃⌥R` sends **the text you have selected** to whichever engine is set in Settings → AI —
+a model on your Mac by default, your OpenRouter account if you have chosen the cloud. So
+under the cloud engine, the sentence you are rewriting reaches that provider, exactly as a
+chat question would. **This Mac only** keeps it home.
+
+To read the selection at all, Bananino needs **Accessibility** permission: it presses ⌘C
+for you and reads the clipboard, then presses ⌘V to put the new text back. While it does,
+your own clipboard is saved and restored, and clipboard history is paused so none of it is
+recorded. The selected text is held only while the popup is open and is dropped when it
+closes.
+
 ## What leaves your Mac
 
 Only these, and only when you ask:

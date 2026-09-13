@@ -19,6 +19,7 @@ export const createClipboardWatcher = ({ isEnabled, onChange }) => {
   let lastSeen = null
   let selfWritten = null
   let timer = null
+  let paused = 0
 
   const readText = async () => {
     const text = await clipboard.readText()
@@ -45,7 +46,7 @@ export const createClipboardWatcher = ({ isEnabled, onChange }) => {
   }
 
   const tick = async () => {
-    if (!isEnabled()) return
+    if (!isEnabled() || paused > 0) return
 
     const text = await readText()
     if (text === lastSeen) return
@@ -58,6 +59,25 @@ export const createClipboardWatcher = ({ isEnabled, onChange }) => {
     clips = addClip(clips, { id: randomUUID(), text, at: Date.now() })
     await writeClips(clips)
     onChange?.(clips)
+  }
+
+  /**
+   * Borrowing the clipboard for a moment — a rewrite copies your selection out and pastes
+   * the new text back in, and none of that traffic is something you chose to copy.
+   *
+   * Counted rather than a flag, so two borrowers cannot un-pause each other, and the
+   * resume reseeds `lastSeen`: whatever is on the clipboard when the borrower is done is
+   * the state to carry on from, not a change to record.
+   */
+  const pause = () => {
+    paused += 1
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      paused = Math.max(0, paused - 1)
+      if (paused === 0) void readText().then((text) => (lastSeen = text))
+    }
   }
 
   /** Copying a stored clip back out must not be recorded as a brand new clip. */
@@ -89,5 +109,5 @@ export const createClipboardWatcher = ({ isEnabled, onChange }) => {
     timer = null
   }
 
-  return { start, stop, all: () => clips, copyToClipboard, update }
+  return { start, stop, all: () => clips, copyToClipboard, update, pause }
 }
