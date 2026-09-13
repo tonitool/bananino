@@ -10,6 +10,7 @@ import {
   windowSize,
 } from '../src/main/windowGeometry.js'
 import { CORNERS, PANEL, SCREEN_MARGIN, WINDOW_SIZES } from '../src/main/constants.js'
+import { isInside } from '../src/main/geometry.js'
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 }
 
@@ -74,9 +75,47 @@ test('an unknown corner falls back to bottom-right instead of throwing', () => {
   assert.equal(bounds.x + bounds.width, workArea.width - SCREEN_MARGIN)
 })
 
-test('the hot corner zone sits flush in the corner of the work area', () => {
+test('the hot corner zone sits flush in the corner when nothing is in the way', () => {
   const zone = hotCornerZone({ workArea, corner: 'bottom-right', size: 28 })
   assert.deepEqual(zone, { x: 1484, y: 917, width: 28, height: 28 })
+})
+
+test('the hot corner reaches past the Dock to the screen’s own corner', () => {
+  /*
+   * The bug this is here for: the zone used to stop at the work area, which stops at the
+   * Dock. With a Dock along the bottom — the default — the bottom-right work-area corner
+   * is ~80px above the screen's corner, so shoving the pointer into the corner (the only
+   * gesture the screen edge lets you make without aiming) parked it on the Dock, outside
+   * the zone. It worked flawlessly for anyone who had hidden their Dock, which is how it
+   * came to be reported as "doesn't work on some laptops".
+   */
+  const screenBounds = { x: 0, y: 0, width: 1512, height: 982 }
+  const withDock = { x: 0, y: 38, width: 1512, height: 862 }
+
+  const zone = hotCornerZone({ workArea: withDock, bounds: screenBounds, corner: 'bottom-right', size: 28 })
+  assert.deepEqual(zone, { x: 1484, y: 872, width: 28, height: 110 })
+
+  // The pixel in the very corner of the screen is now in the zone; it was not before.
+  assert.equal(isInside({ x: 1511, y: 981 }, zone), true)
+  assert.equal(isInside({ x: 1511, y: 981 }, hotCornerZone({ workArea: withDock, corner: 'bottom-right', size: 28 })), false)
+  // And the band inside the work area still counts, so nothing that worked stops working.
+  assert.equal(isInside({ x: 1500, y: 880 }, zone), true)
+})
+
+test('a top corner reaches up through the menu bar, and a side one out to the edge', () => {
+  const screenBounds = { x: 0, y: 0, width: 1512, height: 982 }
+  const withDock = { x: 0, y: 38, width: 1512, height: 862 }
+
+  const top = hotCornerZone({ workArea: withDock, bounds: screenBounds, corner: 'top-left', size: 28 })
+  assert.deepEqual(top, { x: 0, y: 0, width: 28, height: 66 })
+  assert.equal(isInside({ x: 0, y: 0 }, top), true)
+
+  // A Dock on the left moves the work area's left edge; the zone still starts at the screen.
+  const leftDock = { x: 80, y: 38, width: 1432, height: 944 }
+  const bottomLeft = hotCornerZone({ workArea: leftDock, bounds: screenBounds, corner: 'bottom-left', size: 28 })
+  assert.equal(bottomLeft.x, 0)
+  assert.equal(bottomLeft.width, 108)
+  assert.equal(isInside({ x: 2, y: 981 }, bottomLeft), true)
 })
 
 test('clamping keeps a window fully inside the work area', () => {

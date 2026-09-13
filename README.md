@@ -165,6 +165,18 @@ would rather it just stayed out.
 > **System Settings → Desktop & Dock → Hot Corners** so only one of them fires, or move
 > Bananino to a different corner.
 
+The corner reaches the screen's own corner, Dock and menu bar included — you can shove the
+pointer into it rather than aiming above the Dock. If it still does not wake:
+
+- **Is it pinned?** Settings → Behaviour → *Keep the buddy on screen*. Pinned means it
+  never hides, so nothing has to summon it and the corner does nothing.
+- **Which corner is it set to?** Settings → Behaviour → *Wake in corner*, and it is the
+  corner of the screen your cursor is on — on a second display, that display's corner.
+- **It needs about a sixth of a second.** A flick that bounces off the corner and comes
+  straight back is quicker than the dwell; rest there instead.
+- `⌃⌥Space` and the menu bar icon open the panel regardless, and are worth knowing about
+  for the times a corner is being awkward.
+
 ## Shortcuts
 
 | Shortcut (default) | Action |
@@ -245,8 +257,9 @@ sliding out from under your cursor mid-click.
 
 ## What the buddy can do for you
 
-The chat is not only an answer machine: it works the Mac in front of it. Ask in words and
-it uses a tool, rather than telling you which button to press.
+The chat is not only an answer machine: it works the Mac in front of it. Open the panel
+(`⌃⌥Space`, or click the buddy) and pick **Chat** — the empty thread offers a few examples
+to tap — then ask in words. It uses a tool rather than telling you which button to press.
 
 | Ask for | What happens |
 | --- | --- |

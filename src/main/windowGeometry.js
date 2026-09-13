@@ -49,15 +49,42 @@ export const cornerBounds = ({ workArea, corner, sizeKey, isPanelOpen, panelHeig
   }
 }
 
-/** The small square of screen that summons the character. */
-export const hotCornerZone = ({ workArea, corner, size }) => {
+/**
+ * The patch of screen that summons the character.
+ *
+ * It reaches the *physical* corner, not the work area's one, and that distinction is the
+ * whole bug it fixes. The work area stops at the Dock and below the menu bar — so with a
+ * Dock along the bottom (which is the default) the bottom-right work-area corner sits some
+ * 80px above the screen's own corner. Shoving the pointer into the corner, which is the
+ * gesture everybody actually makes and the only one the screen edge lets you make without
+ * aiming, parks it on the Dock: outside the zone, every time. Whoever hid their Dock or
+ * moved it to the left saw the feature work perfectly, which is exactly the "works on mine"
+ * report this came from.
+ *
+ * So the zone spans from `size` inside the work area out to the display's edge: the corner
+ * you can slam into, plus the band above it that was there before.
+ *
+ * `bounds` defaults to the work area, which makes this the old behaviour on a screen with
+ * nothing in the way — and keeps the function usable with one rectangle.
+ */
+export const hotCornerZone = ({ workArea, bounds = workArea, corner, size }) => {
   const anchor = CORNERS[corner] ?? CORNERS['bottom-right']
-  return {
-    x: anchor.x === 1 ? workArea.x + workArea.width - size : workArea.x,
-    y: anchor.y === 1 ? workArea.y + workArea.height - size : workArea.y,
-    width: size,
-    height: size,
+
+  /** One axis: from `size` inside the work area to the screen's own edge. */
+  const span = (edge, isFar) => {
+    const inner = isFar
+      ? workArea[edge.at] + workArea[edge.span] - size
+      : workArea[edge.at] + size
+    const outer = isFar ? bounds[edge.at] + bounds[edge.span] : bounds[edge.at]
+    return isFar
+      ? { at: Math.round(inner), span: Math.round(Math.max(outer - inner, size)) }
+      : { at: Math.round(outer), span: Math.round(Math.max(inner - outer, size)) }
   }
+
+  const horizontal = span({ at: 'x', span: 'width' }, anchor.x === 1)
+  const vertical = span({ at: 'y', span: 'height' }, anchor.y === 1)
+
+  return { x: horizontal.at, y: vertical.at, width: horizontal.span, height: vertical.span }
 }
 
 export const clampToWorkArea = ({ x, y }, { width, height }, workArea) => ({

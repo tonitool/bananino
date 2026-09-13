@@ -26,12 +26,38 @@
 }
 
 .thread-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
   padding: 14px 12px;
   border: 1px dashed var(--cream-line);
   border-radius: var(--radius-card);
   color: var(--cocoa-soft);
   font-size: var(--text-sm);
   line-height: 1.45;
+}
+
+.thread-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* One tap each: the only place the buddy gets to say what it can actually do. */
+.thread-example {
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--cocoa);
+  padding: 4px 9px;
+  background: var(--cream-sunk);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+
+.thread-example:hover {
+  background: var(--butter);
 }
 
 .bubble {

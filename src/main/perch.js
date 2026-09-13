@@ -46,7 +46,14 @@ export const createPerch = ({
   let closeBoundsTimer = null
   let measuredHeight = PANEL.height
 
-  const workArea = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
+  /*
+   * The display under the cursor, not the primary one: on a second screen the corner has
+   * to be that screen's corner. Both rectangles are kept — the window is placed inside the
+   * work area so it never hides under the Dock, while the hot corner reaches past it to
+   * the screen's own edge.
+   */
+  const display = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const workArea = () => display().workArea
 
   const panelHeight = () => measuredHeight
 
@@ -194,7 +201,8 @@ export const createPerch = ({
     if (alwaysVisible) return
 
     const now = Date.now()
-    const zone = hotCornerZone({ workArea: workArea(), corner, size: HOT_CORNER_SIZE_PX })
+    const { workArea: area, bounds } = display()
+    const zone = hotCornerZone({ workArea: area, bounds, corner, size: HOT_CORNER_SIZE_PX })
     const inCorner = isInside(point, zone)
 
     if (!inCorner) cornerSince = null

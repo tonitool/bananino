@@ -78,12 +78,44 @@ const bubbleOf = (message) => {
 
 export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
   const thread = el('div', { class: 'thread', role: 'log', 'aria-live': 'polite' })
-  const empty = el('p', {
-    class: 'thread-empty',
-    text:
-      'Ask about your day, or ask for something done — start a timer, write a note, ' +
-      'log time you forgot.',
-  })
+  /**
+   * What to say to it, before anyone has said anything.
+   *
+   * The tools are invisible — a chat box looks like a chat box whether it can skip a track
+   * or not — so the empty state is the only place the buddy gets to say what it can do.
+   * The examples are one tap each and land in the box rather than sending: they are as much
+   * a demonstration of how to phrase a thing as a shortcut for doing it.
+   */
+  const examples = [
+    'Skip this track',
+    'What did I download today?',
+    'What did I write about the kickoff?',
+    'How long have I tracked today?',
+  ]
+
+  const empty = el('div', { class: 'thread-empty' }, [
+    el('p', {
+      class: 'thread-empty-copy',
+      text:
+        'Ask about your day, or ask for something done — track time, write a note, find a ' +
+        'file or an old note, search your messages, work the music.',
+    }),
+    el(
+      'div',
+      { class: 'thread-examples' },
+      examples.map((example) =>
+        el('button', {
+          class: 'thread-example',
+          type: 'button',
+          text: example,
+          onclick: () => {
+            input.value = example
+            input.focus()
+          },
+        }),
+      ),
+    ),
+  ])
 
   const input = el('textarea', {
     class: 'note-input chat-input',
