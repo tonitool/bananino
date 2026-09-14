@@ -53,6 +53,8 @@ function boot(bridge) {
     setEngine: (mode) => bridge.setAiEngine(mode),
     saveKey: (key) => bridge.saveAiKey(key),
     forgetKey: () => bridge.forgetAiKey(),
+    checkTools: () => bridge.checkTools(),
+    onToolCheck: (handler) => bridge.onToolCheck(handler),
   })
 
   const sections = [

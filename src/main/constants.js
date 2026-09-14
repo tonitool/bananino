@@ -290,6 +290,9 @@ export const IPC = Object.freeze({
   settingsChooseFolder: 'settings:choose-folder',
   settingsSetShortcut: 'settings:set-shortcut',
   settingsRecording: 'settings:recording',
+  /* "Can it actually reach these?" — the model taken out of the question entirely. */
+  toolCheck: 'tools:check',
+  toolCheckResult: 'tools:check-result',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
 

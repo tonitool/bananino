@@ -72,6 +72,9 @@ const IPC = {
   settingsChooseFolder: 'settings:choose-folder',
   settingsSetShortcut: 'settings:set-shortcut',
   settingsRecording: 'settings:recording',
+  /* "Can it actually reach these?" — the model taken out of the question entirely. */
+  toolCheck: 'tools:check',
+  toolCheckResult: 'tools:check-result',
   setDance: 'dance:set',
   openReleases: 'app:open-releases',
 
@@ -169,6 +172,8 @@ contextBridge.exposeInMainWorld('pet', {
   setShortcut: (payload) => ipcRenderer.send(IPC.settingsSetShortcut, payload),
   /* Global shortcuts stand down while a chord is being recorded — see src/main/app.js. */
   setRecordingShortcut: (on) => ipcRenderer.send(IPC.settingsRecording, Boolean(on)),
+  checkTools: () => ipcRenderer.send(IPC.toolCheck),
+  onToolCheck: (handler) => subscribe(IPC.toolCheckResult, handler),
   setDance: (name) => ipcRenderer.send(IPC.setDance, name ?? null),
   openReleases: () => ipcRenderer.send(IPC.openReleases),
 

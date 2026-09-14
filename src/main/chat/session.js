@@ -99,6 +99,12 @@ export const createChat = ({
             title: message.title,
             detail: message.detail,
             status: message.status,
+            /*
+             * A read carries its whole answer through, because the summary is a count and
+             * the answer is the list. When the model then says it could not search, the
+             * list is the part worth reading: it is what the tool actually returned.
+             */
+            ...(message.status === 'read' ? { told: message.told } : {}),
           }
         : { role: message.role, text: message.text, failed: message.failed ?? false },
     ),

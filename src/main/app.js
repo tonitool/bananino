@@ -60,6 +60,7 @@ import { clearUnpinned, removeClip, searchClips, togglePin } from './storage/cli
 import { ensureDir, notesDir } from './storage/paths.js'
 import { searchNotes } from './storage/noteSearch.js'
 import { createFileSearch } from './storage/fileSearch.js'
+import { runToolCheck } from './toolCheck.js'
 import { formatMinutes } from './storage/dates.js'
 import {
   maybeClickSelector,
@@ -903,6 +904,31 @@ export const startApp = () => {
      * it did not take. Quietly reverting to the old chord would be the worse lie.
      */
     setRecordingShortcut: (recording) => standDownShortcuts(recording),
+
+    /**
+     * Every tool run for real, with no model in the way.
+     *
+     * The reason this exists: a small model relaying a tool result can produce "I cannot
+     * run the search, and it found no matches" — two answers in one sentence, neither
+     * necessarily the tool's. This is the same code the chat calls, so whatever it says
+     * came from the tool itself.
+     */
+    checkTools: async () => {
+      const checks = await runToolCheck({
+        searchFiles: fileSearch,
+        searchMessages: async (query, limit) => {
+          const outcome = await searchMessages({ query, limit })
+          if (outcome.blocked) return { blocked: true, hint: FULL_DISK_ACCESS_HINT }
+          if (outcome.failed) return { failed: outcome.failed }
+          return { lines: outcome.messages.map(formatRow) }
+        },
+        music: musicControl,
+        isAccessibilityTrusted: () => systemPreferences.isTrustedAccessibilityClient(false),
+        home: homedir(),
+      }).catch((error) => [{ label: 'Checks', state: 'failed', detail: error.message }])
+
+      settingsWindow.send(IPC.toolCheckResult, checks)
+    },
 
     setShortcut: ({ id, accelerator }) => {
       if (!Object.hasOwn(SHORTCUT_HANDLERS, id)) return

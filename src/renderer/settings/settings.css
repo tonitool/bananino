@@ -794,3 +794,48 @@ body {
   text-align: right;
   color: oklch(58% 0.15 30);
 }
+
+
+/*
+ * The tool check's results: one line each, state in the colour and nowhere else — a row of
+ * green ticks reads as decoration, while a sentence that says what came back is evidence.
+ */
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.check-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 11px;
+  background: var(--cream-sunk);
+  border-left: 2px solid var(--cream-line);
+  border-radius: var(--radius-control);
+}
+
+.check-line[data-state='ok'] {
+  border-left-color: var(--tint-sage);
+}
+
+.check-line[data-state='warn'] {
+  border-left-color: var(--tint-butter);
+}
+
+.check-line[data-state='failed'] {
+  border-left-color: var(--tint-coral);
+}
+
+.check-label {
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.check-detail {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--cocoa-soft);
+  user-select: text;
+}

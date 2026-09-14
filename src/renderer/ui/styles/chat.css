@@ -325,3 +325,24 @@
   color: var(--cocoa-soft);
   opacity: 0.85;
 }
+
+/*
+ * The whole answer, once Show is pressed. Monospaced and scrollable because it is a list
+ * of paths and timestamps — columns that only line up in a fixed width — and because a
+ * folder listing must not be allowed to push the rest of the thread off the panel.
+ */
+.card-told {
+  margin-top: 4px;
+  max-height: 132px;
+  overflow: auto;
+  padding: 5px 6px;
+  border-radius: 6px;
+  background: var(--cream-sunk);
+  color: var(--cocoa);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}

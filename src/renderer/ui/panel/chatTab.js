@@ -26,15 +26,43 @@ import { clear, el, setHidden } from '../dom.js'
  * "Undo" against a past tense, a verb against a future one — because a pill that means
  * two different things depending on a colour is how you undo the wrong thing.
  */
+/**
+ * The one pill a card offers, and nothing when it offers none.
+ *
+ * Pulled out of the card because it is the whole rule: reversible acts offer Undo,
+ * irreversible ones offer the press, and a read offers its answer — but only when the
+ * answer says more than the line already on the card. Three shapes in one decision is
+ * exactly the sort of thing that quietly grows a fourth, so it is testable on its own.
+ */
+export const cardOffer = ({ status, detail, told }) => {
+  if (status === 'undoable') return 'Undo'
+  if (status === 'proposed') return 'Do it'
+  if (status !== 'read') return null
+  const answer = String(told ?? '').trim()
+  return answer && answer !== detail ? 'answer' : null
+}
+
 const cardOf = (action, { onAct }) => {
   const title = el('p', { class: 'card-title' })
   const detail = el('p', { class: 'card-detail' })
+  /**
+   * What the tool actually returned, in full.
+   *
+   * The line above it is a count — "5 results" — which is the right size for a thread but
+   * is not the answer. It matters more than it sounds: a small local model relaying a
+   * search will sometimes report "I cannot run the file search right now" over a result
+   * that came back perfectly well, and then the only copy of the answer is here. Show is
+   * the way past a model that will not say what it was told.
+   */
+  const told = el('pre', { class: 'card-told' })
   const button = el('button', { class: 'card-do', type: 'button' })
 
   const root = el('div', { class: 'card' }, [
-    el('div', { class: 'card-body' }, [title, detail]),
+    el('div', { class: 'card-body' }, [title, detail, told]),
     button,
   ])
+
+  let open = false
 
   const render = (next) => {
     root.dataset.status = next.status
@@ -42,12 +70,23 @@ const cardOf = (action, { onAct }) => {
     detail.textContent = next.detail ?? ''
     setHidden(detail, !next.detail)
 
-    const offer =
-      next.status === 'undoable' ? 'Undo' : next.status === 'proposed' ? 'Do it' : null
+    const pill = cardOffer(next)
+    const expandable = pill === 'answer'
+    told.textContent = expandable ? String(next.told).trim() : ''
+    setHidden(told, !expandable || !open)
+
+    const offer = expandable ? (open ? 'Hide' : 'Show') : pill
     button.textContent = offer ?? ''
     setHidden(button, !offer)
     button.onclick = offer
-      ? () => onAct(next.id, next.status === 'undoable' ? 'undo' : 'confirm')
+      ? () => {
+          if (next.status === 'read') {
+            open = !open
+            render(next)
+            return
+          }
+          onAct(next.id, next.status === 'undoable' ? 'undo' : 'confirm')
+        }
       : null
   }
 
