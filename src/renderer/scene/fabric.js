@@ -117,7 +117,6 @@ export const paintFabric = ({ look, logo, area, stretch, density = 1, size = 102
   if (logo && area) {
     const aspect = area.aspect ?? 1
     const width = area.size * size
-    const height = (width * stretch) / aspect
     const scale = Math.min(width / logo.width, width / (aspect * logo.height))
 
     context.drawImage(

@@ -75,7 +75,11 @@ export const createPanel = ({ actions }) => {
     onOpenTime: () => focusTab('time'),
   })
 
-  const manual = createManualEntry({ onAdd: actions.addManualTime })
+  const manual = createManualEntry({
+    onAdd: actions.addManualTime,
+    // Escape backs out of the form to the timer, which is what it replaced on screen.
+    onDismiss: () => focusMode('live'),
+  })
 
   /**
    * Starting a timer and adding time you forgot are two ways of doing one thing, so only

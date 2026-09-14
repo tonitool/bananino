@@ -14,7 +14,7 @@ const isoDay = (offsetDays = 0) => {
  * so start and end times are deliberately not asked for — inventing them would put false
  * clock times in the log.
  */
-export const createManualEntry = ({ onAdd }) => {
+export const createManualEntry = ({ onAdd, onDismiss = () => {} }) => {
   const date = el('input', {
     class: 'manual-input manual-date',
     type: 'date',
@@ -140,7 +140,13 @@ export const createManualEntry = ({ onAdd }) => {
   for (const field of [duration, task, description]) {
     field.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') (event.preventDefault(), submit())
-      if (event.key === 'Escape') (event.stopPropagation(), setOpen(false))
+      /*
+       * Escape used to call setOpen(false), which this component has never had — a
+       * leftover from when the form was a panel that opened over the timer rather than a
+       * mode beside it. Pressing Escape in any of these three fields threw a
+       * ReferenceError instead of backing out. Backing out now means the mode it replaced.
+       */
+      if (event.key === 'Escape') (event.stopPropagation(), onDismiss())
     })
   }
 

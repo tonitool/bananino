@@ -77,6 +77,19 @@ import {
 } from './devTools.js'
 
 /**
+ * A command run to completion, with its output.
+ *
+ * The one line this file was missing. `execFile` and `promisify` were both imported and
+ * never brought together, so the call below named `execFileAsync` — which existed
+ * nowhere. Nothing caught it: `mdfind` is handed into createFileSearch as a function, so
+ * the search's own tests pass a fake one and never touch this, and the ReferenceError only
+ * happened once a real search ran. Every Spotlight query since the feature shipped died
+ * here before reaching Spotlight, and the chat, being handed "the file search could not
+ * run", filled in a reason of its own.
+ */
+const runCommand = promisify(execFile)
+
+/**
  * `~/Desktop/spec.pdf` as a path the filesystem knows.
  *
  * A model writes a path the way a person says one, and `~` is a shell's convention rather
@@ -232,7 +245,7 @@ export const startApp = () => {
      * the old 8s and 1MB were a scoped search's numbers, and an unscoped one hit them.
      */
     mdfind: async (args) => {
-      const { stdout } = await execFileAsync('mdfind', args, {
+      const { stdout } = await runCommand('mdfind', args, {
         timeout: 20_000,
         maxBuffer: 8 * 1024 * 1024,
       })
@@ -1072,11 +1085,6 @@ export const startApp = () => {
       },
     ]),
   )
-
-  const clearPendingUpdate = () => {
-    pendingUpdate = null
-    tray.refresh()
-  }
 
   let manualCheckWaiting = false
 

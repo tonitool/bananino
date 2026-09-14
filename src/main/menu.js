@@ -212,9 +212,15 @@ export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, up
     ].map(([label, minutes]) => ({ label, click: () => actions.nudgeTimer(minutes) })),
   },
   { type: 'separator' },
-  update
-    ? { label: `Download v${update.version}…`, click: actions.openUpdate }
-    : { label: 'Check for updates', click: actions.checkForUpdates },
+  /*
+   * Built by the helper, not inlined here. The line below used to read
+   * `Download v${update.version}…` and fire openUpdate whatever state the update was in —
+   * so while Squirrel was still fetching, the menu offered a restart that installed
+   * nothing, which is the other half of "I pressed it and I'm still on the old version".
+   * updateMenuEntry has said the right thing for three releases; it was imported at the
+   * top of this file and never called.
+   */
+  updateMenuEntry(update, actions),
   { label: 'Quit Bananino', accelerator: 'Command+Q', click: actions.quit },
 ]
 

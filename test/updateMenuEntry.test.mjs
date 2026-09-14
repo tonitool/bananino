@@ -26,6 +26,27 @@ test('a downloaded update offers the restart that installs it', () => {
   assert.equal(entry.click(), 'open')
 })
 
+test('the menu is built by this helper rather than by a copy of it', async () => {
+  /*
+   * It was not. menu.js imported updateMenuEntry, never called it, and wrote the line
+   * itself: `Download v${update.version}…`, clicking through to openUpdate whatever state
+   * the update was in. So while Squirrel was still fetching, the menu offered an install
+   * of something not yet downloaded — and the "Downloading…, and you cannot hurry it"
+   * state two tests above this one has never appeared on anyone's screen.
+   *
+   * The helper being right is not the point. Being the thing that runs is.
+   */
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  const menu = await readFile(join(root, 'src', 'main', 'menu.js'), 'utf8')
+
+  assert.match(menu, /updateMenuEntry\(update, actions\)/, 'menu.js does not call the helper')
+  assert.doesNotMatch(
+    menu,
+    /label: `Download v/,
+    'menu.js builds an update line of its own beside the helper',
+  )
+})
+
 test('every updater method app.js calls is one the updater really returns', async () => {
   /*
    * The bug this exists for. app.js called `updates.open?.(pendingUpdate.url)` — a method

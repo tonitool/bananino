@@ -1,7 +1,5 @@
 import { Box3, Raycaster, Vector3 } from 'three'
 
-const DOWN = new Vector3(0, -1, 0)
-
 /** Rays start outside the model and travel inwards to find its surface. */
 const OUTSIDE = 4
 
