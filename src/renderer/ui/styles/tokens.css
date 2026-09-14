@@ -91,6 +91,22 @@ body {
 }
 
 /*
+ * hidden means hidden, whatever display a component happens to have.
+ *
+ * `hidden` is only a browser default of `display: none`, and any author rule outranks a
+ * browser default — so the moment a component is given `display: flex` to lay its insides
+ * out, it stops being hideable and nothing says so. Every `[hidden]` rule scattered through
+ * these stylesheets is that discovery, made separately, twenty-five times.
+ *
+ * It bit again when the chat's empty state became a flex box for its dismiss button: the
+ * × set the attribute, the element stayed put, and the button looked broken. One rule with
+ * !important settles it for everything, including the next component nobody thought about.
+ */
+[hidden] {
+  display: none !important;
+}
+
+/*
  * Set by the --pin-panel dev flag. Screenshots are taken through capturePage, and an
  * unfocused window is not composited, so CSS transitions sit frozen at their start value
  * and every capture comes out mid-fade. Removing motion makes captures deterministic.

@@ -35,7 +35,15 @@ const chord = (settings, id) => {
 }
 
 /** One template, shared by the menu bar icon and the right-click menu on the character. */
-export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, update }) => [
+export const buildMenuTemplate = ({ settings, actions, isPanelOpen, hasQueue, update, version }) => [
+  /*
+   * Which version is actually running, at the top of the menu that opens it.
+   *
+   * Not decoration: an update that installs on quit means the thing on screen and the
+   * thing just downloaded can differ, and "is this fixed for you?" was being answered by
+   * guesswork on both sides. One glance settles it.
+   */
+  ...(version ? [{ label: `Bananino ${version}`, enabled: false }, { type: 'separator' }] : []),
   {
     label: isPanelOpen ? 'Close panel' : 'Open panel',
     ...chord(settings, 'panel'),

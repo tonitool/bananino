@@ -76,3 +76,25 @@ test('every updater method app.js calls is one the updater really returns', asyn
   assert.match(app, /updates\.install\(\)/)
   assert.doesNotMatch(app, /updates\.\w+\?\./, 'an optional call hides a misspelt method')
 })
+
+test('hidden means hidden, whatever display a component was given', async () => {
+  /*
+   * The regression this is here for, and it was mine. `hidden` is only a browser default
+   * of display:none, so the moment .thread-empty was given `display: flex` to lay out its
+   * dismiss button, the attribute stopped doing anything — the × set it and the box stayed
+   * on screen. The stylesheets are full of per-component [hidden] rules, each one the same
+   * discovery made again; one global rule means the next component never has to make it.
+   */
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  const tokens = await readFile(join(root, 'src', 'renderer', 'ui', 'styles', 'tokens.css'), 'utf8')
+
+  assert.match(
+    tokens.replace(/\s+/g, ' '),
+    /\[hidden\] \{ display: none !important; \}/,
+    'the panel has no global [hidden] rule, so any component with a display of its own cannot be hidden',
+  )
+
+  // tokens.css is imported first, and !important is what makes order not matter.
+  const index = await readFile(join(root, 'src', 'renderer', 'ui', 'styles', 'index.css'), 'utf8')
+  assert.match(index, /@import '\.\/tokens\.css'/)
+})

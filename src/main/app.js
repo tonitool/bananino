@@ -976,6 +976,7 @@ export const startApp = () => {
         isPanelOpen: perch.isPanelOpen(),
         hasQueue: moco.pendingEntries().length > 0,
         update: pendingUpdate,
+        version: app.getVersion(),
         onClose: () => (isMenuOpen = false),
       })
     },
@@ -1011,6 +1012,7 @@ export const startApp = () => {
     isPanelOpen: perch.isPanelOpen(),
     hasQueue: moco.pendingEntries().length > 0,
     update: pendingUpdate,
+    version: app.getVersion(),
   }))
 
   /*
