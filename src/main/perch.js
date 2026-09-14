@@ -11,6 +11,7 @@ import {
   PANEL,
   PANEL_CLOSE_FADE_MS,
   PANEL_OPEN_SETTLE_MS,
+  WINDOW_ANIMATION_MS,
   SCREEN_MARGIN,
   WINDOW_SIZES,
 } from './constants.js'
@@ -113,9 +114,19 @@ export const createPerch = ({
    * collapsed, leaving everything past the fold outside the window and unclickable.
    */
   /**
-   * `animate` uses macOS's own window resize animation, which matters when the panel opens
-   * or a view changes height — the window otherwise snaps to its new size while the panel
-   * fades, and the snap is what reads as stuttering.
+   * `animate` hands the resize to macOS's own window animation.
+   *
+   * Used sparingly, and never for opening the panel. The window is transparent, so its
+   * frame is not a thing anyone can see moving — what you watch when the panel opens is
+   * the CSS clip-path wipe inside it. Animating the frame as well meant two animations of
+   * different lengths and easings for one motion, and a full relayout of the panel on
+   * every frame of the native one, in a window that is also drawing a 3D character. That
+   * is the stutter on opening: not a wrong size being corrected, but the same motion being
+   * performed twice, expensively.
+   *
+   * It stays for a height change on an *open* panel — switching to a taller view genuinely
+   * moves an opaque edge, and there is no CSS to carry that because the height is the
+   * window's.
    */
   const applyBounds = ({ animate = false } = {}) => {
     if (win.isDestroyed()) return
@@ -132,7 +143,20 @@ export const createPerch = ({
     if (!unchanged) {
       win.setResizable(true)
       win.setBounds(bounds, animate)
-      win.setResizable(false)
+
+      /*
+       * Restored after the animation, not during it. An animated setBounds returns at once
+       * while macOS keeps animating, and a window that is not resizable has its maximum
+       * size pinned to its current one — so putting the pin back immediately clamps a
+       * window that is still moving. That fight is the rest of the stutter.
+       */
+      if (animate) {
+        setTimeout(() => {
+          if (!win.isDestroyed()) win.setResizable(false)
+        }, WINDOW_ANIMATION_MS)
+      } else {
+        win.setResizable(false)
+      }
     }
 
     notify()
@@ -182,7 +206,8 @@ export const createPerch = ({
     if (next) {
       clearTimeout(closeBoundsTimer)
       closeBoundsTimer = null
-      applyBounds({ animate: true })
+      // Instant: the CSS wipe is the animation, and the frame under it is invisible.
+      applyBounds()
       // The panel has text fields, so the window has to be able to take keyboard focus.
       if (!win.isVisible()) win.showInactive()
       // An accessory app has to claim activation explicitly before a field can take keys.
@@ -194,7 +219,8 @@ export const createPerch = ({
       notify()
       closeBoundsTimer = setTimeout(() => {
         closeBoundsTimer = null
-        if (!isPanelOpen) applyBounds({ animate: true })
+        // The panel has already faded; shrinking a transparent window is nothing to watch.
+        if (!isPanelOpen) applyBounds()
       }, PANEL_CLOSE_FADE_MS)
       win.blur()
       return

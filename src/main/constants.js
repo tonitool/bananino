@@ -89,6 +89,14 @@ export const PANEL_CLOSE_FADE_MS = 240
  */
 export const PANEL_OPEN_SETTLE_MS = 320
 
+/**
+ * Roughly how long macOS takes over an animated window resize.
+ *
+ * Only used to know when it is safe to make the window non-resizable again — doing that
+ * while the animation is still running pins the window's maximum size mid-flight.
+ */
+export const WINDOW_ANIMATION_MS = 260
+
 /** Distance from the screen edge when the character is out and resting. */
 export const SCREEN_MARGIN = 22
 

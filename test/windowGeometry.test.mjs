@@ -240,3 +240,31 @@ test('the menu bar icon is a template image: black, and shaped only by its alpha
     assert.ok(ink < size * size * 0.5, `${name} fills half the square`)
   }
 })
+
+test('opening the panel resizes the window instantly and lets CSS do the moving', async () => {
+  /*
+   * The lag on opening, properly this time. The window is transparent, so its frame is not
+   * something anyone watches — the motion you see is the panel's own clip-path wipe. The
+   * open path animated the frame as well, which meant two animations of different lengths
+   * and easings for one motion, and a full relayout of the panel on every frame of the
+   * native one, in a window that is also drawing a 3D character.
+   *
+   * And an animated setBounds returns while macOS keeps animating, so putting the
+   * non-resizable pin straight back clamped a window that was still moving.
+   */
+  const perch = await readFile(join(ROOT, 'src', 'main', 'perch.js'), 'utf8')
+
+  // The opening half of setPanelOpen: from `if (next) {` to the `} else {` that follows it.
+  const opensAt = perch.indexOf('if (next) {')
+  const open = perch.slice(opensAt, perch.indexOf('} else {', opensAt))
+  assert.ok(open.length > 0, 'could not find the panel-opening block in perch.js')
+  assert.match(open, /applyBounds\(\)/, 'opening the panel still animates the window frame')
+  assert.doesNotMatch(open, /applyBounds\(\{ animate: true \}\)/)
+
+  // The pin goes back after the animation, never during it.
+  assert.match(perch, /if \(animate\) \{\s*setTimeout\(\(\) => \{[\s\S]*?setResizable\(false\)/)
+
+  // A height change on an already-open panel keeps its animation: that edge is opaque and
+  // really does move, and there is no CSS to carry it.
+  assert.match(perch, /animate: Date\.now\(\) - openedAt > PANEL_OPEN_SETTLE_MS/)
+})
