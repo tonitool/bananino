@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   boundsAtRest,
   clampToWorkArea,
@@ -11,6 +14,8 @@ import {
 } from '../src/main/windowGeometry.js'
 import { CORNERS, PANEL, SCREEN_MARGIN, WINDOW_SIZES } from '../src/main/constants.js'
 import { isInside } from '../src/main/geometry.js'
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 }
 
@@ -176,4 +181,24 @@ test('restingSpotFor inverts boundsAtRest, so a drag with the panel open still r
     restingSpotFor({ origin: [600, 200], placement: 'below', isPanelOpen: true, panelHeight: 400 }),
     [600, 200],
   )
+})
+
+test('the panel opens at the height it was left at, not at a default it has to correct', async () => {
+  /*
+   * The blink on opening. The measured height started at PANEL.height every launch, so the
+   * first open animated the window to a size that was wrong, the renderer measured the
+   * real one, and a second animated resize crossed the first — two animations over each
+   * other, which is what you see. Remembering the height removes the correction, and a
+   * correction that does arrive mid-open is applied without animation.
+   *
+   * Checked as text because perch.js reaches electron and cannot be imported under node.
+   */
+  const perch = await readFile(join(ROOT, 'src', 'main', 'perch.js'), 'utf8')
+  assert.match(perch, /measuredHeight = getSettings\(\)\.panelHeight/)
+  assert.match(perch, /saveSettings\(\{ panelHeight: next \}\)/)
+  assert.match(perch, /animate: Date\.now\(\) - openedAt > PANEL_OPEN_SETTLE_MS/)
+
+  // And the store has to keep it, or it is re-learnt on every launch regardless.
+  const store = await readFile(join(ROOT, 'src', 'main', 'store.js'), 'utf8')
+  assert.match(store, /panelHeight: Number\.isFinite/)
 })

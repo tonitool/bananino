@@ -10,6 +10,7 @@ import {
   MIN_PANEL_HEIGHT,
   PANEL,
   PANEL_CLOSE_FADE_MS,
+  PANEL_OPEN_SETTLE_MS,
   SCREEN_MARGIN,
   WINDOW_SIZES,
 } from './constants.js'
@@ -44,7 +45,8 @@ export const createPerch = ({
   let focusedAt = 0
   let hideTimer = null
   let closeBoundsTimer = null
-  let measuredHeight = PANEL.height
+  // Where the last session left it, so the first open does not have to correct itself.
+  let measuredHeight = getSettings().panelHeight ?? PANEL.height
 
   /*
    * The display under the cursor, not the primary one: on a second screen the corner has
@@ -144,6 +146,11 @@ export const createPerch = ({
     applyBounds()
     if (!win.isVisible()) win.showInactive()
     awaySince = null
+    /*
+     * Told twice on purpose: applyBounds notifies before the window is shown, so that
+     * first message carries isRevealed: false. This one, after showInactive, is the one
+     * that says the buddy is on screen.
+     */
     notify()
   }
 
@@ -249,8 +256,17 @@ export const createPerch = ({
 
       if (Math.abs(next - measuredHeight) < 3) return
       measuredHeight = next
-      if (isPanelOpen) applyBounds({ animate: true })
-      else notify()
+      // Remembered, so the next launch opens at this size instead of learning it again.
+      saveSettings({ panelHeight: next })
+
+      if (!isPanelOpen) return notify()
+
+      /*
+       * Animated only once the opening resize has settled. A correction that lands while
+       * the panel is still fading in is invisible as a snap and a visible blink as a
+       * second animation crossing the first — which is what opening the panel looked like.
+       */
+      applyBounds({ animate: Date.now() - openedAt > PANEL_OPEN_SETTLE_MS })
     },
     /**
      * A blur only counts as "clicked away" once focus actually landed and stayed put.

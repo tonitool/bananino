@@ -80,6 +80,15 @@ export const FOCUS_SETTLE_MS = 260
  */
 export const PANEL_CLOSE_FADE_MS = 240
 
+/**
+ * How long the opening resize takes to settle.
+ *
+ * A height correction arriving inside this window is applied *without* animation: the
+ * panel is still fading in, so a snap is invisible, while a second animated resize across
+ * the first one is the blink you can see.
+ */
+export const PANEL_OPEN_SETTLE_MS = 320
+
 /** Distance from the screen edge when the character is out and resting. */
 export const SCREEN_MARGIN = 22
 

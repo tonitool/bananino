@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   CHAT_ENGINES,
+  MIN_PANEL_HEIGHT,
+  PANEL,
   CHARACTER_MENU,
   CORNERS,
   COSTUME_MENU,
@@ -46,6 +48,15 @@ const sanitize = (raw) => ({  sizeKey: Object.hasOwn(WINDOW_SIZES, raw?.sizeKey)
    * 348px panel — which is exactly the complaint that put this setting here.
    */
   chatExamples: raw?.chatExamples !== false,
+  /*
+   * How tall the panel measured last time. Remembered because it is otherwise re-learnt
+   * on the first open of every launch: the window animated to a default height, the
+   * renderer measured the real one, and a second animated resize crossed the first —
+   * which is the blink on opening.
+   */
+  panelHeight: Number.isFinite(raw?.panelHeight)
+    ? Math.min(Math.max(Math.round(raw.panelHeight), MIN_PANEL_HEIGHT), 2000)
+    : PANEL.height,
   // Off by default: switching it on is what prompts for Automation permission, which is
   // far less alarming when it happens because you just asked for the feature.
   showNowPlaying: raw?.showNowPlaying === true,
