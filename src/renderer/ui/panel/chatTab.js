@@ -276,7 +276,13 @@ export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel, onHideE
    * see what it looked up, but a card reading "looked at your notes" is noise in a
    * conversation whose next sentence is about those notes.
    */
-  const isVisible = (message) => message.role !== 'action' || message.status !== 'read'
+  /*
+   * Reads show now. They used to be hidden as "not really an act", which is true and was
+   * still the wrong call: a search that failed and a search the model never made looked
+   * identical from the outside, so "the file search isn't working" could not be checked
+   * against anything. One quiet line is the difference between a report and a guess.
+   */
+  const isVisible = () => true
 
   /**
    * The thread is only appended to and its last entry rewritten, which is exactly what a

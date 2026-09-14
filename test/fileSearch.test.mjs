@@ -221,3 +221,22 @@ test('a file that has moved since Spotlight indexed it is dropped', async () => 
   const outcome = await createFileSearch(mac)({ query: 'pdf' })
   assert.deepEqual(outcome.files.map(({ path }) => path), ['/a/here.pdf'])
 })
+
+test('a failure names the command it ran, so a report carries a fact', async () => {
+  /*
+   * Three separate reports of "the file search isn't working" arrived without one
+   * recoverable detail between them: whatever model relayed the failure paraphrased the
+   * reason away. A command is not paraphrasable — it either says mdfind -onlyin … or it
+   * does not, and then we know whether it ran at all.
+   */
+  const mac = fakeMac()
+  mac.mdfind = async () => {
+    throw Object.assign(new Error('Command failed: mdfind'), { killed: true })
+  }
+
+  const outcome = await createFileSearch(mac)({ query: 'asset3', folder: 'Downloads' })
+  assert.match(outcome.failed, /took too long/)
+  // The command reported is the one that failed last — here the contents pass, which runs
+  // after the name pass came back with nothing.
+  assert.match(outcome.failed, /ran: mdfind -onlyin \/Users\/me\/Downloads asset3/)
+})

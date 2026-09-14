@@ -209,16 +209,24 @@ export const createChat = ({
       })
     }
 
-    // A read is not an act: no card, nothing to undo, and the answer goes straight back.
+    /*
+     * A read is not an act — nothing to undo, nothing to press — but it is no longer
+     * invisible. It used to be filtered out of the thread entirely, which meant a search
+     * that failed and a search the model never ran looked exactly alike: "the file search
+     * isn't working" with nothing to check it against. Now every read leaves one quiet
+     * line saying what was asked and what came back.
+     */
     if (tool.read) {
-      const told = await tool.read(args)
+      const told = String(await tool.read(args))
       return remember({
         role: 'action',
         id: nextId++,
         tool: name,
         status: 'read',
+        title: describeRead(name, args),
+        detail: summariseRead(told),
         call: { name, args },
-        told: String(told),
+        told,
       })
     }
 
@@ -420,6 +428,38 @@ export const createChat = ({
     },
     start: () => void checkEngine(),
   }
+}
+
+/** What a read was asked for, in the fewest words that still identify it. */
+const READ_LABELS = Object.freeze({
+  search_files: 'Searched files',
+  search_notes: 'Searched notes',
+  search_messages: 'Searched messages',
+  read_notes: 'Read notes',
+  read_clips: 'Read clipboard',
+  read_calendar: 'Read calendar',
+  find_moco_task: 'Searched MOCO',
+})
+
+const describeRead = (name, args) => {
+  const label = READ_LABELS[name] ?? name
+  const asked = [args?.query, args?.folder && `in ${args.folder}`, args?.date]
+    .filter(Boolean)
+    .join(' ')
+  return asked ? `${label}: ${asked}`.slice(0, 90) : label
+}
+
+/**
+ * The answer in one line.
+ *
+ * A count when there is a list, the sentence itself when it is short — and the whole
+ * failure when it failed, because that is the one case somebody needs to read and repeat.
+ */
+const summariseRead = (told) => {
+  const lines = told.split('\n').filter((line) => line.trim())
+  if (lines.length === 0) return 'nothing came back'
+  if (lines.length > 2) return `${lines.length} results`
+  return lines[0].length > 120 ? `${lines[0].slice(0, 120)}…` : lines[0]
 }
 
 /** Arguments arrive as an object from Ollama and as a JSON string from some models. */

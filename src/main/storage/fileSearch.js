@@ -88,21 +88,28 @@ export const formatFile = ({ path, modified }) =>
  * folder, a whole-Mac search that outran its timeout, and a query so broad the output did
  * not fit. Each one has a different thing for the user to do about it.
  */
-export const describeFailure = (error, { dir } = {}) => {
+export const describeFailure = (error, { dir, ran } = {}) => {
   const code = error?.code ?? ''
   const message = `${error?.stderr ?? ''}${error?.message ?? ''}`
+  /*
+   * What was actually run, carried into every failure. Three rounds of "the search isn't
+   * working" arrived without one recoverable fact between them, because the reasons were
+   * being paraphrased away by whatever model was relaying them. A command is not
+   * paraphrasable: it either says mdfind -onlyin … or it does not.
+   */
+  const attempted = ran ? ` (ran: ${ran})` : ''
 
   if (code === 'EPERM' || code === 'EACCES' || /operation not permitted/i.test(message)) {
     return (
       `macOS is not letting Bananino into ${dir ?? 'that folder'}. Downloads, Desktop and ` +
       'Documents each need permission: System Settings → Privacy & Security → Files and ' +
-      'Folders → Bananino.'
+      `Folders → Bananino.${attempted}`
     )
   }
-  if (code === 'ENOENT') return `There is no folder at ${dir ?? 'that path'}.`
+  if (code === 'ENOENT') return `There is no folder at ${dir ?? 'that path'}.${attempted}`
   if (code === 'ENOTDIR') return `${dir ?? 'That path'} is a file, not a folder.`
   if (code === 'ENOBUFS' || /maxBuffer/i.test(message)) {
-    return 'That search matched more than I can read at once — try a more specific word.'
+    return `That search matched more than I can read at once — try a more specific word.${attempted}`
   }
   /*
    * A timeout does not arrive as a code. execFile kills the child and sets `killed` with
@@ -111,9 +118,9 @@ export const describeFailure = (error, { dir } = {}) => {
    * slow whole-Mac search came back as "the search tool encountered an error".
    */
   if (error?.killed || error?.signal === 'SIGTERM' || code === 'ETIMEDOUT') {
-    return 'That search took too long to finish. Naming a folder to look in makes it quick.'
+    return `That search took too long to finish. Naming a folder to look in makes it quick.${attempted}`
   }
-  return `The file search could not run: ${message.trim() || 'unknown error'}`
+  return `The file search could not run: ${message.trim() || 'unknown error'}${attempted}`
 }
 
 export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) => {
@@ -144,7 +151,7 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
     const direct = resolveFolder(folder, { home, known })
     if (direct) return { dirs: [direct] }
 
-    const found = await mdfind([folderQuery(folder)]).catch(() => [])
+    const found = await runMdfind([folderQuery(folder)]).catch(() => [])
     if (found.length > 0) return { dirs: found.slice(0, MAX_FOLDERS) }
 
     return { dirs: [], within: String(folder).trim().toLowerCase() }
@@ -158,6 +165,12 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
    * that happens to mention it. The general search still runs, because the other half of
    * the time the words are a phrase inside the file.
    */
+  let lastCommand = null
+  const runMdfind = async (args) => {
+    lastCommand = `mdfind ${args.join(' ')}`
+    return mdfind(args)
+  }
+
   const spotlight = async (words, dir) => {
     const scope = dir ? ['-onlyin', dir] : []
 
@@ -167,10 +180,10 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
      * file's *contents* across a whole Mac is what was running out of time and coming
      * back as an error instead of the perfectly good name match it already had.
      */
-    const byName = await mdfind([...scope, '-name', words]).catch((error) => error)
+    const byName = await runMdfind([...scope, '-name', words]).catch((error) => error)
     if (Array.isArray(byName) && byName.length > 0) return byName
 
-    const byAnything = await mdfind([...scope, words]).catch((error) => error)
+    const byAnything = await runMdfind([...scope, words]).catch((error) => error)
     /*
      * Nothing came back by name, so a failed contents pass is the whole answer — reported
      * as the failure it is rather than as "no files match", which would be a search that
@@ -224,7 +237,7 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
       if (dirs.length === 0) hits = await spotlight(words, null)
       else for (const dir of dirs) hits.push(...(await spotlight(words, dir)))
     } catch (error) {
-      return { failed: describeFailure(error, { dir: dirs[0] }) }
+      return { failed: describeFailure(error, { dir: dirs[0], ran: lastCommand }) }
     }
 
     /*

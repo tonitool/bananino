@@ -299,3 +299,29 @@
 .engine-led[data-state='cloud'] {
   background: oklch(70% 0.14 250);
 }
+
+/*
+ * A read, as one quiet line: what was looked up and what came back. Deliberately not a
+ * card — nothing here was done to anything, and there is nothing to press.
+ */
+.card[data-status='read'] {
+  gap: 6px;
+  padding: 5px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  /* The card's own accent is an inset shadow, so the quiet variant replaces it. */
+  box-shadow: inset 2px 0 0 var(--cream-line);
+}
+
+.card[data-status='read'] .card-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--cocoa-soft);
+}
+
+.card[data-status='read'] .card-detail {
+  font-size: var(--text-xs);
+  color: var(--cocoa-soft);
+  opacity: 0.85;
+}
