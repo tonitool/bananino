@@ -260,6 +260,12 @@ export const createPanel = ({ actions }) => {
 
   const update = (snapshot) => {
     rail.update(snapshot)
+    /*
+     * The chat is painted from its own channel, so it was left out of this list — and its
+     * one snapshot-driven thing, whether the suggestions show, therefore never arrived.
+     * The × saved the setting and nothing on screen moved.
+     */
+    chat.update(snapshot)
     running.update(snapshot)
     upcoming.update(snapshot)
     timer.update(snapshot)

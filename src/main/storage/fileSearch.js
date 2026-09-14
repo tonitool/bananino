@@ -104,8 +104,14 @@ export const describeFailure = (error, { dir } = {}) => {
   if (code === 'ENOBUFS' || /maxBuffer/i.test(message)) {
     return 'That search matched more than I can read at once — try a more specific word.'
   }
-  if (code === 'ETIMEDOUT' || /timed out|killed/i.test(message)) {
-    return 'That search took too long. Naming a folder to look in makes it quick.'
+  /*
+   * A timeout does not arrive as a code. execFile kills the child and sets `killed` with
+   * a SIGTERM, leaving `code` as the exit status or null — so checking for 'ETIMEDOUT'
+   * missed every real timeout and they fell through to the sentence below, which is how a
+   * slow whole-Mac search came back as "the search tool encountered an error".
+   */
+  if (error?.killed || error?.signal === 'SIGTERM' || code === 'ETIMEDOUT') {
+    return 'That search took too long to finish. Naming a folder to look in makes it quick.'
   }
   return `The file search could not run: ${message.trim() || 'unknown error'}`
 }
@@ -154,9 +160,25 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
    */
   const spotlight = async (words, dir) => {
     const scope = dir ? ['-onlyin', dir] : []
-    const byName = await mdfind([...scope, '-name', words])
-    const byAnything = await mdfind([...scope, words])
-    return [...byName, ...byAnything]
+
+    /*
+     * By name first, and if that answers, stop there. It is both the more likely thing to
+     * be meant — "find this file" is a name — and by far the quicker: searching every
+     * file's *contents* across a whole Mac is what was running out of time and coming
+     * back as an error instead of the perfectly good name match it already had.
+     */
+    const byName = await mdfind([...scope, '-name', words]).catch((error) => error)
+    if (Array.isArray(byName) && byName.length > 0) return byName
+
+    const byAnything = await mdfind([...scope, words]).catch((error) => error)
+    /*
+     * Nothing came back by name, so a failed contents pass is the whole answer — reported
+     * as the failure it is rather than as "no files match", which would be a search that
+     * never ran claiming to have found nothing.
+     */
+    if (!Array.isArray(byAnything)) throw byAnything
+
+    return Array.isArray(byName) ? [...byName, ...byAnything] : byAnything
   }
 
   return async ({ query, folder, limit = 10 } = {}) => {

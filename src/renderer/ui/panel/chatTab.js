@@ -120,7 +120,13 @@ export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel, onHideE
     text: '×',
     title: 'Hide these suggestions',
     'aria-label': 'Hide these suggestions',
-    onclick: () => onHideExamples(),
+    onclick: () => {
+      // Hidden here and now, not when the setting comes back: a dismissal that waits for
+      // a round trip through the main process reads as a button that does nothing.
+      showExamples = false
+      setHidden(empty, true)
+      onHideExamples()
+    },
   })
 
   const emptyCopy = el('p', {

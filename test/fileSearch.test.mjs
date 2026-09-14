@@ -50,17 +50,14 @@ test('a named folder narrows Spotlight instead of being searched for as a word',
   const search = createFileSearch(mac)
 
   const outcome = await search({ query: 'invoice', folder: 'Downloads' })
-  // By name first — "find this file" means the name, not every document mentioning it —
-  // and then by anything, because the other half of the time the words are inside it.
-  assert.deepEqual(mac.asked, [
-    ['-onlyin', '/Users/me/Downloads', '-name', 'invoice'],
-    ['-onlyin', '/Users/me/Downloads', 'invoice'],
-  ])
+  // By name only, because the name found something. "Find this file" means the name, and
+  // the contents pass is the slow one — running it anyway is what timed out.
+  assert.deepEqual(mac.asked, [['-onlyin', '/Users/me/Downloads', '-name', 'invoice']])
   assert.deepEqual(outcome.files.map(({ path }) => path), ['/Users/me/Downloads/invoice-44.pdf'])
 
-  // Without a folder it is the whole Mac, as before.
+  // Without a folder it is the whole Mac, as before — still by name first.
   await search({ query: 'invoice' })
-  assert.deepEqual(mac.asked.at(-1), ['invoice'])
+  assert.deepEqual(mac.asked.at(-1), ['-name', 'invoice'])
 })
 
 test('a folder this Mac has never heard of is found, not asked about', async () => {
@@ -80,6 +77,7 @@ test('a folder this Mac has never heard of is found, not asked about', async () 
 
   assert.match(mac.asked[0][0], /kMDItemFSName == "JuniorDepot"c/)
   assert.deepEqual(mac.asked[1], ['-onlyin', '/Users/me/Work/JuniorDepot', '-name', '16x9_Architekt'])
+  assert.equal(mac.asked.length, 2, 'the slow contents search ran even though the name matched')
   assert.deepEqual(outcome.dirs, ['/Users/me/Work/JuniorDepot'])
   assert.deepEqual(outcome.files.map(({ path }) => path), ['/Users/me/Work/JuniorDepot/16x9_Architekt.mp4'])
 })
@@ -163,11 +161,45 @@ test('a search that times out or floods says which, instead of "could not run"',
   }
   assert.match((await createFileSearch(slow)({ query: 'mp3' })).failed, /took too long/)
 
+  /*
+   * The shape a real timeout actually has, and the reason one was reported as "the search
+   * tool encountered an error": execFile kills the child and sets `killed` with a SIGTERM.
+   * The code is the exit status or null, so checking for ETIMEDOUT alone never matched.
+   */
+  const killed = fakeMac()
+  killed.mdfind = async () => {
+    throw Object.assign(new Error('Command failed: mdfind -name "Junior Depot"'), {
+      killed: true,
+      signal: 'SIGTERM',
+      code: null,
+    })
+  }
+  assert.match((await createFileSearch(killed)({ query: 'Junior Depot' })).failed, /took too long/)
+
   const flood = fakeMac()
   flood.mdfind = async () => {
     throw Object.assign(new Error('stdout maxBuffer length exceeded'), { code: 'ENOBUFS' })
   }
   assert.match((await createFileSearch(flood)({ query: 'mp3' })).failed, /more specific word/)
+})
+
+test('one failing pass does not sink a search the other one answered', async () => {
+  // A whole-Mac contents search can die where the name search already succeeded, and
+  // losing the answer it had is the worst of both.
+  const mac = fakeMac()
+  mac.mdfind = async (args) => {
+    if (args.includes('-name')) return []
+    throw Object.assign(new Error('Command failed: mdfind'), { killed: true })
+  }
+  assert.match((await createFileSearch(mac)({ query: 'mp3' })).failed, /took too long/)
+
+  const half = fakeMac()
+  half.mdfind = async (args) => {
+    if (args.includes('-name')) return ['/a/found.mp3']
+    throw new Error('never reached — the name pass already answered')
+  }
+  const outcome = await createFileSearch(half)({ query: 'mp3' })
+  assert.deepEqual(outcome.files.map(({ path }) => path), ['/a/found.mp3'])
 })
 
 test('nothing to go on is still a plain answer', async () => {
