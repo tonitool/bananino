@@ -28,13 +28,46 @@
 .thread-empty {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 14px 12px;
+  gap: 7px;
+  /* Tighter than a card of its own: this competes with the thread for a short panel. */
+  padding: 9px 10px;
   border: 1px dashed var(--cream-line);
   border-radius: var(--radius-card);
   color: var(--cocoa-soft);
   font-size: var(--text-sm);
   line-height: 1.45;
+}
+
+/* The copy and its × on one line, so dismissing costs no height of its own. */
+.thread-empty-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.thread-empty-copy {
+  flex: 1;
+}
+
+.thread-dismiss {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--cocoa-soft);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+.thread-dismiss:hover {
+  opacity: 1;
+  background: var(--cream-sunk);
 }
 
 .thread-examples {

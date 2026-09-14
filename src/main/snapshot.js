@@ -59,6 +59,7 @@ export const buildSnapshot = async ({ settings, clips, moco, nowPlaying, meeting
       sizeKey: settings.sizeKey,
       alwaysVisible: settings.alwaysVisible,
       captureClipboard: settings.captureClipboard,
+      chatExamples: settings.chatExamples,
       showNowPlaying: settings.showNowPlaying,
       meetingCloudFallback: settings.meetingCloudFallback,
       meetingUseMic: settings.meetingUseMic,

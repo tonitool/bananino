@@ -221,10 +221,19 @@ export const startApp = () => {
    * Finder calls Downloads and the shell does not.
    */
   const fileSearch = createFileSearch({
+    /*
+     * Errors are thrown rather than swallowed, which is the whole point: every way this
+     * can fail used to arrive as one useless sentence, so the chat guessed at reasons.
+     * A timeout, an overflowing buffer and a folder macOS will not open are three
+     * different things to tell someone — see describeFailure in storage/fileSearch.js.
+     *
+     * A whole-Mac search is slow and can match a great deal, so both limits are generous:
+     * the old 8s and 1MB were a scoped search's numbers, and an unscoped one hit them.
+     */
     mdfind: async (args) => {
       const { stdout } = await execFileAsync('mdfind', args, {
-        timeout: 8_000,
-        maxBuffer: 1024 * 1024,
+        timeout: 20_000,
+        maxBuffer: 8 * 1024 * 1024,
       })
       return stdout.split('\n').filter(Boolean)
     },
@@ -872,6 +881,12 @@ export const startApp = () => {
      * user read were produced here, and accepting a string back from the page would mean
      * pasting something nobody in this process had ever seen.
      */
+    /** Dismissed for good, not for this window: it is a setting, not a session flag. */
+    hideChatExamples: () => {
+      saveSettings({ chatExamples: false })
+      void pushSnapshot()
+    },
+
     rewrite: () => void rewrite.start(),
     rewriteOpened: () => rewriteWindow.send(IPC.rewriteState, rewrite.state()),
     rewriteAsk: (instruction) => void rewrite.ask(instruction),

@@ -40,6 +40,12 @@ const sanitize = (raw) => ({  sizeKey: Object.hasOwn(WINDOW_SIZES, raw?.sizeKey)
   dataDir: typeof raw?.dataDir === 'string' && raw.dataDir ? raw.dataDir : defaultDataDir(),
   alwaysVisible: raw?.alwaysVisible === true,
   captureClipboard: raw?.captureClipboard !== false,
+  /*
+   * The example prompts under an empty chat. On by default because the tools are
+   * invisible without them, and dismissible because they cost the thread real height in a
+   * 348px panel — which is exactly the complaint that put this setting here.
+   */
+  chatExamples: raw?.chatExamples !== false,
   // Off by default: switching it on is what prompts for Automation permission, which is
   // far less alarming when it happens because you just asked for the feature.
   showNowPlaying: raw?.showNowPlaying === true,

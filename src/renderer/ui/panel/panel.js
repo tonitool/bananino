@@ -177,6 +177,7 @@ export const createPanel = ({ actions }) => {
     onClear: () => actions.chatClear(),
     onAct: (id, choice) => actions.chatAct(id, choice),
     onModel: (name) => actions.chatModel(name),
+    onHideExamples: () => actions.hideChatExamples(),
   })
 
   const panels = { chat, time, note, clips, meet, calendar }

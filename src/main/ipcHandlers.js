@@ -60,6 +60,7 @@ export const registerIpcHandlers = ({ interaction, perch, actions, mic }) => {
      * it is an index into versions the main process itself produced — never text from the
      * page, which could not then be trusted to be what the user read and pressed.
      */
+    [IPC.chatHideExamples]: () => actions.hideChatExamples(),
     [IPC.settingsRecording]: (_e, on) => actions.setRecordingShortcut(Boolean(on)),
     [IPC.settingsSetShortcut]: (_e, payload) =>
       actions.setShortcut({

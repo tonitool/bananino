@@ -575,3 +575,51 @@ test('locked messages hand back the reason, not an apology', async () => {
   // only useful answer, so it travels to the model as the tool's result.
   assert.match(await tools.search_messages.read({ query: 'dinner' }), /Full Disk Access/)
 })
+
+test('a folder nobody has heard of is searched for, not asked about', async () => {
+  // The report: "find 16x9_Architekt in the JuniorDepot folder" came back as "I don't know
+  // where that is, give me the full path", three times over. The tool takes any folder
+  // name now, and the brief says so in as many words — a model that asks for a path has
+  // been told not to.
+  let asked = null
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    searchFiles: async (request) => {
+      asked = request
+      return {
+        dirs: ['/Users/me/Work/JuniorDepot'],
+        files: [{ path: '/Users/me/Work/JuniorDepot/16x9_Architekt.mp4', modified: new Date('2026-09-12T14:03:00Z') }],
+      }
+    },
+  })
+
+  const answer = await tools.search_files.read({ query: '16x9_Architekt', folder: 'JuniorDepot' })
+  assert.deepEqual(asked, { query: '16x9_Architekt', folder: 'JuniorDepot', limit: 10 })
+  // Where it looked is said once, above the paths: a search that quietly widened to the
+  // whole Mac would otherwise hand back plausible hits from somewhere else entirely.
+  assert.match(answer, /^In \/Users\/me\/Work\/JuniorDepot:/m)
+  assert.match(answer, /16x9_Architekt\.mp4/)
+
+  assert.match(SYSTEM, /Never ask the user where a folder is/)
+  assert.match(tools.search_files.schema.function.description, /never ask the user where a folder is/)
+})
+
+test('a search that failed hands its own reason back, whole', async () => {
+  // "The search couldn't run" taught the model to invent second explanations beside it.
+  const tools = createTools({
+    actions: {},
+    getSnapshot: () => ({}),
+    readNotes: async () => [],
+    searchTasks: () => [],
+    searchFiles: async () => ({
+      failed: 'macOS is not letting Bananino into /Users/me/Downloads. System Settings → Privacy & Security → Files and Folders.',
+    }),
+  })
+
+  const answer = await tools.search_files.read({ query: 'elevenlabs', folder: 'Downloads' })
+  assert.match(answer, /Privacy & Security → Files and Folders/)
+  assert.match(SYSTEM, /Repeat that reason/)
+})

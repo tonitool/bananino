@@ -259,7 +259,8 @@ sliding out from under your cursor mid-click.
 
 The chat is not only an answer machine: it works the Mac in front of it. Open the panel
 (`⌃⌥Space`, or click the buddy) and pick **Chat** — the empty thread offers a few examples
-to tap — then ask in words. It uses a tool rather than telling you which button to press.
+to tap, and a `×` to put them away for good once you know them — then ask in words. It uses
+a tool rather than telling you which button to press.
 
 | Ask for | What happens |
 | --- | --- |
@@ -269,6 +270,7 @@ to tap — then ask in words. It uses a tool rather than telling you which butto
 | "find the spec sketch on my Mac" | Spotlight, full paths and dates, newest first |
 | "what did I download today?" | Lists your Downloads folder, newest first |
 | "the invoice in my Downloads" | Searches that folder only, not the whole Mac |
+| "16x9_Architekt, it's in JuniorDepot" | Finds the folder first, then searches inside it |
 | "open it" | Opens the file — after you press the card |
 | "what did Anna text me about dinner?" | Searches the Messages history on this Mac |
 | "what did I copy earlier?" | Searches the clipboard history |
@@ -290,9 +292,14 @@ Settings → Privacy & Security → Full Disk Access**.
 
 A few limits worth knowing rather than discovering:
 
-- File search is Spotlight's index, so it finds what Spotlight finds. A folder can be
-  named — Downloads, Desktop, Documents, or a full path — and anything it cannot place it
-  says so rather than quietly searching everywhere.
+- File search is Spotlight's index, so it finds what Spotlight finds. Any folder can be
+  named — a well-known one, a project folder, or a full path — and one it does not
+  recognise it looks up before searching inside. If no folder of that name exists
+  anywhere, it searches the whole Mac and keeps the hits whose path mentions the name,
+  saying so rather than pretending it looked where you asked.
+- Downloads, Desktop and Documents are behind a macOS permission. Until Bananino is
+  allowed in under **System Settings → Privacy & Security → Files and Folders**, they read
+  as empty — the search says which switch to flip rather than reporting no matches.
 - Playing something *by name* is Apple Music only — Spotify's AppleScript can play a URI
   but cannot search your library. Skip, pause and play work in both.
 - A player that is closed is never spoken to, so nothing launches Music behind your back.

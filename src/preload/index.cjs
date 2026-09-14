@@ -54,6 +54,7 @@ const IPC = {
   chatOpened: 'chat:opened',
   chatAct: 'chat:act',
   chatModel: 'chat:model',
+  chatHideExamples: 'chat:hide-examples',
   chatState: 'chat:state',
 
   calendarConnect: 'calendar:connect',
@@ -147,6 +148,7 @@ contextBridge.exposeInMainWorld('pet', {
   chatOpened: () => ipcRenderer.send(IPC.chatOpened),
   chatAct: (payload) => ipcRenderer.send(IPC.chatAct, payload),
   chatModel: send(IPC.chatModel),
+  hideChatExamples: () => ipcRenderer.send(IPC.chatHideExamples),
   onChatState: (handler) => subscribe(IPC.chatState, handler),
 
   calendarConnect: (payload) => ipcRenderer.send(IPC.calendarConnect, payload),

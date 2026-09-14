@@ -76,45 +76,61 @@ const bubbleOf = (message) => {
   return { root: bubble, render }
 }
 
-export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
+export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel, onHideExamples }) => {
   const thread = el('div', { class: 'thread', role: 'log', 'aria-live': 'polite' })
   /**
    * What to say to it, before anyone has said anything.
    *
    * The tools are invisible — a chat box looks like a chat box whether it can skip a track
-   * or not — so the empty state is the only place the buddy gets to say what it can do.
-   * The examples are one tap each and land in the box rather than sending: they are as much
-   * a demonstration of how to phrase a thing as a shortcut for doing it.
+   * or not — so this is the only place the buddy gets to say what it can do. It is also
+   * the only thing competing with the thread for height in a 348px panel, which is why it
+   * is four short chips on two lines rather than a paragraph, and why the × is there:
+   * once you know what it can do, being told again every time you clear the thread is
+   * just less room to read the answer in.
    */
   const examples = [
-    'Skip this track',
-    'What did I download today?',
-    'What did I write about the kickoff?',
-    'How long have I tracked today?',
+    ['Skip this track', 'Skip this track'],
+    ['What did I download today?', 'Downloads today'],
+    ['Find a file on my Mac', 'Find a file'],
+    ['How long have I tracked today?', 'Time today'],
   ]
 
-  const empty = el('div', { class: 'thread-empty' }, [
-    el('p', {
-      class: 'thread-empty-copy',
-      text:
-        'Ask about your day, or ask for something done — track time, write a note, find a ' +
-        'file or an old note, search your messages, work the music.',
-    }),
-    el(
-      'div',
-      { class: 'thread-examples' },
-      examples.map((example) =>
-        el('button', {
-          class: 'thread-example',
-          type: 'button',
-          text: example,
-          onclick: () => {
-            input.value = example
-            input.focus()
-          },
-        }),
-      ),
+  let showExamples = true
+
+  const exampleRow = el(
+    'div',
+    { class: 'thread-examples' },
+    examples.map(([prompt, label]) =>
+      el('button', {
+        class: 'thread-example',
+        type: 'button',
+        title: prompt,
+        text: label,
+        onclick: () => {
+          input.value = prompt
+          input.focus()
+        },
+      }),
     ),
+  )
+
+  const dismiss = el('button', {
+    class: 'thread-dismiss',
+    type: 'button',
+    text: '×',
+    title: 'Hide these suggestions',
+    'aria-label': 'Hide these suggestions',
+    onclick: () => onHideExamples(),
+  })
+
+  const emptyCopy = el('p', {
+    class: 'thread-empty-copy',
+    text: 'Ask about your day, or ask for something done — time, notes, files, messages, music.',
+  })
+
+  const empty = el('div', { class: 'thread-empty' }, [
+    el('div', { class: 'thread-empty-head' }, [emptyCopy, dismiss]),
+    exampleRow,
   ])
 
   const input = el('textarea', {
@@ -278,7 +294,7 @@ export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
     })
 
     setHidden(thread, messages.length === 0)
-    setHidden(empty, messages.length > 0)
+    setHidden(empty, messages.length > 0 || !showExamples)
   }
 
   /**
@@ -306,9 +322,17 @@ export const createChatTab = ({ onSend, onStop, onClear, onAct, onModel }) => {
   return {
     root,
     setState,
-    // Painted from its own channel, not the snapshot: a conversation is not a view of the
-    // day, and it changes on a completely different beat.
-    update: () => {},
+    /*
+     * The thread is painted from its own channel — a conversation is not a view of the
+     * day and changes on a different beat — but whether the suggestions show is a
+     * setting, and settings arrive with the snapshot.
+     */
+    update: (snapshot) => {
+      const wanted = snapshot?.settings?.chatExamples !== false
+      if (wanted === showExamples) return
+      showExamples = wanted
+      setHidden(empty, !showExamples || thread.childElementCount > 0)
+    },
     focus: () => input.focus(),
   }
 }

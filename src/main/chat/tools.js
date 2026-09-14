@@ -322,10 +322,10 @@ export const createTools = ({
     search_files: {
       schema: schema(
         'search_files',
-        'Search files on this Mac by name or content words (Spotlight), newest-modified first, with the full path and date of each. Pass folder to look in one place — "Downloads", "Desktop" or a full path — and pass folder with no query to list what is in it, which answers "what did I download".',
+        'Search files on this Mac by name or content words (Spotlight), newest-modified first, with the full path and date of each. folder narrows it: pass ANY folder name — "Downloads", "JuniorDepot", a project folder, or a full path — and it is found for you, so never ask the user where a folder is. folder with no query lists what is in it, which answers "what did I download".',
         {
-          query: string('File name or content words to look for, e.g. "spec sketch final".'),
-          folder: string('Optional: where to look, e.g. "Downloads" or "/Users/me/Projects".'),
+          query: string('File name or content words to look for, e.g. "16x9_Architekt" or "spec sketch final".'),
+          folder: string('Optional: the folder to look in, by name or path — e.g. "Downloads", "JuniorDepot".'),
         },
       ),
       read: async ({ query, folder }) => {
@@ -338,15 +338,29 @@ export const createTools = ({
         })
         if (outcome.failed) return outcome.failed
 
+        const where = outcome.dirs?.length
+          ? outcome.dirs.length === 1
+            ? outcome.dirs[0]
+            : `${outcome.dirs.length} folders of that name`
+          : null
+
         if (outcome.files.length === 0) {
           const words = String(query ?? '').trim()
-          if (!words) return `${outcome.dir} is empty.`
-          return outcome.dir
-            ? `No file in ${outcome.dir} matches "${words}".`
+          if (!words) return `${where} is empty.`
+          if (where) return `No file in ${where} matches "${words}".`
+          return outcome.within
+            ? `No file matching "${words}" is anywhere under a folder called "${outcome.within}", and no folder of that name exists.`
             : `No files match "${words}".`
         }
 
-        return outcome.files.map(formatFile).join('\n')
+        /*
+         * Where it looked, said once above the paths: a search that quietly widened from
+         * one folder to the whole Mac would otherwise hand back plausible hits from
+         * somewhere else entirely.
+         */
+        const found = outcome.files.map(formatFile).join('\n')
+        if (where) return `In ${where}:\n${found}`
+        return outcome.within ? `Nowhere is there a folder called "${outcome.within}", so this is the whole Mac:\n${found}` : found
       },
     },
 

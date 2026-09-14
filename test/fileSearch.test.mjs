@@ -7,12 +7,18 @@ const known = (name) => `${HOME}/${name[0].toUpperCase()}${name.slice(1)}`
 
 const at = (iso) => ({ mtime: new Date(iso) })
 
-/** A Mac with a few files on it, dated so the ordering has something to prove. */
+/**
+ * A Mac with a few files on it, dated so the ordering has something to prove.
+ *
+ * `hits` may be a list (every search finds it) or a function of the arguments, for the
+ * tests that care which of the two Spotlight passes — by name, then by anything — found
+ * what, or that a folder was looked up before it was searched.
+ */
 const fakeMac = ({ hits = [], folder = {}, times = {} } = {}) => {
   const asked = []
   return {
     asked,
-    mdfind: async (args) => (asked.push(args), hits),
+    mdfind: async (args) => (asked.push(args), typeof hits === 'function' ? hits(args) : hits),
     readFolder: async (dir) => {
       if (!folder[dir]) throw new Error('ENOENT')
       return folder[dir]
@@ -44,12 +50,54 @@ test('a named folder narrows Spotlight instead of being searched for as a word',
   const search = createFileSearch(mac)
 
   const outcome = await search({ query: 'invoice', folder: 'Downloads' })
-  assert.deepEqual(mac.asked, [['-onlyin', '/Users/me/Downloads', 'invoice']])
+  // By name first — "find this file" means the name, not every document mentioning it —
+  // and then by anything, because the other half of the time the words are inside it.
+  assert.deepEqual(mac.asked, [
+    ['-onlyin', '/Users/me/Downloads', '-name', 'invoice'],
+    ['-onlyin', '/Users/me/Downloads', 'invoice'],
+  ])
   assert.deepEqual(outcome.files.map(({ path }) => path), ['/Users/me/Downloads/invoice-44.pdf'])
 
   // Without a folder it is the whole Mac, as before.
   await search({ query: 'invoice' })
   assert.deepEqual(mac.asked.at(-1), ['invoice'])
+})
+
+test('a folder this Mac has never heard of is found, not asked about', async () => {
+  /*
+   * The report this is here for: "find 16x9_Architekt in the JuniorDepot folder" was met
+   * with "I don't know where that is, give me the full path" — three times over. A folder
+   * is the one thing Spotlight is certain to be able to find, so it is looked up.
+   */
+  const mac = fakeMac({
+    hits: (args) => {
+      if (args[0]?.startsWith('kMDItemContentType')) return ['/Users/me/Work/JuniorDepot']
+      return ['/Users/me/Work/JuniorDepot/16x9_Architekt.mp4']
+    },
+  })
+
+  const outcome = await createFileSearch(mac)({ query: '16x9_Architekt', folder: 'JuniorDepot' })
+
+  assert.match(mac.asked[0][0], /kMDItemFSName == "JuniorDepot"c/)
+  assert.deepEqual(mac.asked[1], ['-onlyin', '/Users/me/Work/JuniorDepot', '-name', '16x9_Architekt'])
+  assert.deepEqual(outcome.dirs, ['/Users/me/Work/JuniorDepot'])
+  assert.deepEqual(outcome.files.map(({ path }) => path), ['/Users/me/Work/JuniorDepot/16x9_Architekt.mp4'])
+})
+
+test('a folder that exists nowhere narrows the whole Mac by its name', async () => {
+  // Still better than a question back: search everywhere, keep what sits under something
+  // of that name, and say plainly that is what happened.
+  const mac = fakeMac({
+    hits: (args) => {
+      if (args[0]?.startsWith('kMDItemContentType')) return []
+      return ['/Users/me/Archive/juniordepot/old.mp4', '/Users/me/Other/unrelated.mp4']
+    },
+  })
+
+  const outcome = await createFileSearch(mac)({ query: 'mp4', folder: 'JuniorDepot' })
+  assert.deepEqual(outcome.dirs, [])
+  assert.equal(outcome.within, 'juniordepot')
+  assert.deepEqual(outcome.files.map(({ path }) => path), ['/Users/me/Archive/juniordepot/old.mp4'])
 })
 
 test('results come back newest first, which is what the tool always claimed', async () => {
@@ -90,12 +138,43 @@ test('a folder with no words is "what did I download", newest first', async () =
   assert.deepEqual(mac.asked, [])
 })
 
-test('a folder nobody can find says so, rather than searching everything', async () => {
-  const search = createFileSearch(fakeMac())
+test('a refusal from macOS is not reported as an empty folder', async () => {
+  /*
+   * The other half of the JuniorDepot report: asked to list Downloads, the answer was
+   * "there is no folder there, or it might be empty". Downloads, Desktop and Documents
+   * are all behind a permission, and an app that has not been granted it must say which
+   * switch to flip rather than describe the folder as missing.
+   */
+  const mac = fakeMac()
+  mac.readFolder = async () => {
+    throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+  }
 
-  assert.match((await search({ query: 'invoice', folder: 'wherever' })).failed, /do not know where/)
-  assert.match((await search({ folder: '/Users/me/Nope' })).failed, /no folder at/)
+  const outcome = await createFileSearch(mac)({ folder: 'Downloads' })
+  assert.match(outcome.failed, /Privacy & Security → Files and Folders/)
+  assert.doesNotMatch(outcome.failed, /empty/)
+})
+
+test('a search that times out or floods says which, instead of "could not run"', async () => {
+  // One sentence for every failure taught the model to invent reasons for them.
+  const slow = fakeMac()
+  slow.mdfind = async () => {
+    throw Object.assign(new Error('spawn mdfind ETIMEDOUT'), { code: 'ETIMEDOUT' })
+  }
+  assert.match((await createFileSearch(slow)({ query: 'mp3' })).failed, /took too long/)
+
+  const flood = fakeMac()
+  flood.mdfind = async () => {
+    throw Object.assign(new Error('stdout maxBuffer length exceeded'), { code: 'ENOBUFS' })
+  }
+  assert.match((await createFileSearch(flood)({ query: 'mp3' })).failed, /more specific word/)
+})
+
+test('nothing to go on is still a plain answer', async () => {
+  const search = createFileSearch(fakeMac())
   assert.match((await search({})).failed, /No search words/)
+  // A folder that cannot be found, and no words either: nothing to search for at all.
+  assert.match((await search({ folder: 'wherever' })).failed, /could not find a folder/)
 })
 
 test('a file that has moved since Spotlight indexed it is dropped', async () => {
