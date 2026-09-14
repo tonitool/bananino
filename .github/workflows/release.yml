@@ -204,6 +204,35 @@ jobs:
           gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$GITHUB_REF_NAME" \
             || echo "could not delete $GITHUB_REF_NAME — harmless, but tidy it up by hand"
 
+      # The draft is made *here*, before electron-builder ever looks for it, and this is
+      # not tidiness: electron-builder runs one publisher per artifact, and every one of
+      # them creates the release if it cannot find it. GitHub refuses a second *published*
+      # release for a tag — that is the 422 that broke 1.1.0 — but it happily accepts a
+      # second *draft*, so the publishers raced and the artifacts split across two drafts
+      # of the same tag. Every release since 1.2.0 left a stray one-asset draft behind,
+      # and 1.6.0 was the one where `gh release view` resolved to the stray rather than
+      # the real one: a complete, signed, notarized build that could not be published
+      # because the check could not find it.
+      #
+      # One draft, created before the race can start, and every publisher finds it.
+      - name: Open the draft release first
+        if: steps.run.outputs.releasing == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.run.outputs.tag }}
+        run: |
+          drafts="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq "[.[] | select(.tag_name == \"$TAG\" and .draft)] | length")"
+
+          if [ "$drafts" -gt 1 ]; then
+            echo "$drafts drafts already exist for $TAG — delete all but one before re-running"
+            exit 1
+          fi
+
+          if [ "$drafts" -eq 0 ]; then
+            gh release create "$TAG" --draft --title "${TAG#v}" --generate-notes
+          fi
+
       - run: npm ci
 
       - run: npm test
@@ -256,6 +285,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.run.outputs.tag }}
         run: |
+          # Asked of the API rather than `gh release view`, which resolves a tag to one
+          # release of its choosing when more than one carries it — and chose the empty
+          # one for 1.6.0. This names every draft on the tag, so a split is a failure
+          # here rather than a mystery at publish time.
+          drafts="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq "[.[] | select(.tag_name == \"$TAG\" and .draft)] | length")"
+          if [ "$drafts" -ne 1 ]; then
+            echo "expected exactly one draft for $TAG, found $drafts"
+            exit 1
+          fi
+
           names="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
           echo "$names"
           for want in '\.dmg$' '\.zip$'; do
