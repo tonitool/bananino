@@ -980,8 +980,20 @@ export const startApp = () => {
       })
     },
 
-    openUpdate: () => pendingUpdate && updates.open?.(pendingUpdate.url),
-    checkForUpdates: () => updates.checkNow?.(),
+    /**
+     * The restart that swaps the app in.
+     *
+     * Quitting is declared before Squirrel is asked to do it: closing the windows is part
+     * of quitAndInstall, and `window-all-closed` only quits when it knows that is what is
+     * happening. Without it the windows go and the process stays, which is a restart that
+     * never comes back.
+     */
+    openUpdate: () => {
+      if (!updates.isReady()) return say('nothing to install yet')
+      isQuitting = true
+      updates.install()
+    },
+    checkForUpdates: () => updates.checkNow(),
     openReleases: () =>
       shell.openExternal(`${UPDATE_REPOSITORY}/releases`).catch(reportOnly('open the releases page')),
     openSettings: () => settingsWindow.open(),
@@ -1131,7 +1143,7 @@ export const startApp = () => {
     calendar.stop()
     stopCursorTracker()
     music.stop()
-    updates.stop?.()
+    updates.stop()
     unregisterIpc()
     shortcuts.dispose()
     clipboard.stop()

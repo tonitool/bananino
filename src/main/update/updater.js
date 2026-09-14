@@ -37,13 +37,31 @@ export const startAutoUpdater = ({ repositoryUrl, onAvailable, onDownloaded, onN
     if (logFile) appendFile(logFile, `${new Date().toISOString()} ${args.join(' ')}\n`).catch(() => {})
   }
 
-  if (!repository) {
-    log('[update] no repository configured, so no update checks')
-    return { stop: () => {}, checkNow: async () => {} }
+  /*
+   * The same shape whether or not updating is possible.
+   *
+   * These used to return {stop, checkNow} only, so every call site guarded with `?.` — and
+   * a guard that forgives a missing method also forgives a misspelt one. `updates.open()`
+   * sat in app.js for three releases doing nothing at all, because the optional call
+   * swallowed it: the menu said "Restart Bananino for v1.6.1" and clicking it was a no-op.
+   * One shape means the call sites can simply call, and a wrong name is a crash in
+   * development rather than a silence in someone's menu bar.
+   */
+  const idle = (why) => {
+    log(`[update] ${why}`)
+    return {
+      stop: () => {},
+      checkNow: async () => {},
+      isReady: () => false,
+      install: () => log('[update] nothing to install here'),
+      // No repository means no releases page to open; saying so beats a broken link.
+      openReleasesPage: () => log('[update] no releases page to open'),
+    }
   }
+
+  if (!repository) return idle('no repository configured, so no update checks')
   if (!app.isPackaged) {
-    log('[update] development run — update checks off, swap would not be ours to make')
-    return { stop: () => {}, checkNow: async () => {} }
+    return idle('development run — update checks off, swap would not be ours to make')
   }
 
   const { owner, repo } = repository
@@ -83,7 +101,12 @@ export const startAutoUpdater = ({ repositoryUrl, onAvailable, onDownloaded, onN
     stop: () => (clearTimeout(first), clearInterval(repeat)),
     checkNow: check,
     isReady: () => ready !== null,
-    install: () => autoUpdater.quitAndInstall(),
+    /*
+     * `isForceRunAfter` on purpose: this is reached from a menu item that says *Restart*,
+     * and an update that installs and leaves the Mac without its buddy is not the restart
+     * anybody pressed.
+     */
+    install: () => autoUpdater.quitAndInstall(false, true),
     openReleasesPage: () => shell.openExternal(releasesPage),
   }
 }
