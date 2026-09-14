@@ -202,3 +202,41 @@ test('the panel opens at the height it was left at, not at a default it has to c
   const store = await readFile(join(ROOT, 'src', 'main', 'store.js'), 'utf8')
   assert.match(store, /panelHeight: Number\.isFinite/)
 })
+
+test('the menu bar icon is a template image: black, and shaped only by its alpha', async () => {
+  /*
+   * macOS keeps the alpha and throws the colour away, tinting the shape to suit the menu
+   * bar. A pixel with any colour in it would look right in a file browser and wrong in the
+   * menu bar, where nobody would think to check — so it is checked here instead.
+   */
+  const { readFileSync } = await import('node:fs')
+  const { inflateSync } = await import('node:zlib')
+
+  for (const [name, size] of [['trayTemplate.png', 16], ['trayTemplate@2x.png', 32]]) {
+    const file = readFileSync(join(ROOT, 'assets', name))
+    assert.deepEqual([...file.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], `${name} is not a PNG`)
+    assert.equal(file.readUInt32BE(16), size, `${name} is not ${size} wide`)
+    assert.equal(file.readUInt32BE(20), size, `${name} is not ${size} tall`)
+    assert.equal(file[24], 8, `${name} is not 8-bit`)
+    assert.equal(file[25], 6, `${name} is not RGBA`)
+
+    // The pixel data, which this writes unfiltered — so it can simply be read back.
+    const start = file.indexOf(Buffer.from('IDAT', 'latin1')) + 4
+    const length = file.readUInt32BE(start - 8)
+    const raw = inflateSync(file.subarray(start, start + length))
+
+    let ink = 0
+    for (let y = 0; y < size; y += 1) {
+      const row = y * (size * 4 + 1)
+      assert.equal(raw[row], 0, 'the row filter is meant to be none')
+      for (let x = 0; x < size; x += 1) {
+        const at = row + 1 + x * 4
+        assert.equal(raw[at] | raw[at + 1] | raw[at + 2], 0, `${name} has colour in it at ${x},${y}`)
+        if (raw[at + 3] > 0) ink += 1
+      }
+    }
+    // Enough of a shape to see, and not so much that it is a blob filling the square.
+    assert.ok(ink > size * 2, `${name} is nearly empty`)
+    assert.ok(ink < size * size * 0.5, `${name} fills half the square`)
+  }
+})

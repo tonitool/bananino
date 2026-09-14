@@ -306,6 +306,25 @@ A few limits worth knowing rather than discovering:
 - Under the cloud engine, what a tool finds travels with your question — file paths, notes,
   clips, message text. **This Mac only** in Settings → AI keeps every word home.
 
+## The menu bar icon
+
+A banana, and it took a second attempt to look like one. macOS menu bar icons are
+*template* images — the colour is thrown away and only the alpha kept, so the icon is a
+silhouette. A banana in silhouette is a crescent, and a crescent at 16 points is a moon.
+People kept reading it as the weather.
+
+What separates it from a moon is a stem, a "smile" pose with both ends up rather than the
+vertical crescent a moon is always drawn as, and two different ends — blunt where the stem
+is, tapered at the other. It is drawn from arithmetic rather than exported from an app:
+
+```bash
+npm run tray-icon                                  # rewrites both sizes
+node scripts/make-tray-icon.mjs --preview          # and prints it as text
+```
+
+The preview matters more than it sounds: 16 pixels is too small to judge in a file
+browser, and the text version shows exactly which pixels carry the shape.
+
 ## Interacting with the character
 
 | Gesture | What happens |

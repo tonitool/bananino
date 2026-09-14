@@ -10,6 +10,7 @@
     "start": "npm run build && electron .",
     "dev": "npm run build && electron . --dev",
     "icon": "electron scripts/make-app-icon.mjs",
+    "tray-icon": "node scripts/make-tray-icon.mjs",
     "dist": "npm run build && electron-builder --mac --publish never",
     "test": "node --test test/*.test.mjs",
     "dist:dir": "npm run build && electron-builder --mac dir",
