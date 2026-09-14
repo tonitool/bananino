@@ -140,6 +140,19 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
   }
 
   /**
+   * Every Spotlight call goes through here, remembering the last one.
+   *
+   * Declared above its callers rather than below them: it works either way, because the
+   * callers only run later, but a const that is used ten lines before it exists is a trap
+   * for whoever moves the next thing.
+   */
+  let lastCommand = null
+  const runMdfind = async (args) => {
+    lastCommand = `mdfind ${args.join(' ')}`
+    return mdfind(args)
+  }
+
+  /**
    * Where to look.
    *
    * Three answers, in the order they are worth trying: a name this Mac knows, a folder
@@ -165,12 +178,6 @@ export const createFileSearch = ({ mdfind, statFile, readFolder, home, known }) 
    * that happens to mention it. The general search still runs, because the other half of
    * the time the words are a phrase inside the file.
    */
-  let lastCommand = null
-  const runMdfind = async (args) => {
-    lastCommand = `mdfind ${args.join(' ')}`
-    return mdfind(args)
-  }
-
   const spotlight = async (words, dir) => {
     const scope = dir ? ['-onlyin', dir] : []
 
